@@ -1,21 +1,26 @@
 #pragma once
+#include <d3d12.h>
 #include <wrl/client.h>
-#include <d3d11.h>
 #include "Vertex.h"
+
 class Mesh
 {
 private:
-	//Buffer Pointers
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer; //vertex buffer
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer; //index buffer
+	// Geometry
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
+	D3D12_INDEX_BUFFER_VIEW ibView{};
 
 	//Data Counts
-	unsigned int indices; //index count
-	unsigned int vertices; //vertex count
+	size_t indices; //index count
+	size_t vertices; //vertex count
 
 	//Helper Methods
 	//Create buffers from necessary data
 	void CreateBuffers(Vertex* vertexData, unsigned int* indexData, size_t vertexCount, size_t indexCount);
+	// Calculate tangents for normal mapping
+	void CalculateTangents(Vertex* verts, size_t numVerts, unsigned int* indices, size_t numIndices);
 
 public:
 	//Constructor
@@ -31,20 +36,13 @@ public:
 	//Methods
 
 	//Getters
-	//Returns the vertex buffer ComPtr
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetVertexBuffer() const;
-	//Returns index buffer ComPtr
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetIndexBuffer() const;
+	// Returns view to the vertex buffer
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
+	// Returns the view to the index buffer
+	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	//Returns number of indices
-	int GetIndexCount() const;
+	size_t GetIndexCount() const;
 	//Returns number of vertices
-	int GetVertexCount() const;
-
-	//Output
-	//Sets buffers and draws using indices count
-	void Draw();
-
-	//Helpers
-	void CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices, int numIndices);
+	size_t GetVertexCount() const;
 };
 
