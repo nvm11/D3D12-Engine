@@ -244,8 +244,8 @@ void Mesh::CreateBuffers(Vertex* vertexData, unsigned int* indexData, size_t ver
 }
 
 //Return whole ComPtr Objects
-D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() { return vbView; }
-D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
+D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() const { return vbView; }
+D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() const { return ibView; }
 
 size_t Mesh::GetVertexCount() const { return vertices; }
 size_t Mesh::GetIndexCount() const { return indices; }

@@ -37,9 +37,9 @@ public:
 
 	//Getters
 	// Returns view to the vertex buffer
-	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const;
 	// Returns the view to the index buffer
-	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
+	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const;
 	//Returns number of indices
 	size_t GetIndexCount() const;
 	//Returns number of vertices
