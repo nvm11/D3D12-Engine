@@ -228,24 +228,24 @@ void Mesh::CreateBuffers(Vertex* vertexData, unsigned int* indexData, size_t ver
 
 	// Calculate tangents
 	CalculateTangents(vertexData, vertexCount, indexData, indexCount);
-	
+
 	// Create the two buffers
 	vertexBuffer = Graphics::CreateStaticBuffer(sizeof(Vertex), vertexCount, vertexData);
 	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), indexCount, indexData);
 
 	//Set up the two views
-	vbView.StrideInBytes = sizeof(Vertex);
-	vbView.SizeInBytes = sizeof(Vertex) * vertexCount;
+	vbView.StrideInBytes = (UINT)sizeof(Vertex);
+	vbView.SizeInBytes = (UINT)(sizeof(Vertex) * vertexCount);
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 
 	ibView.Format = DXGI_FORMAT_R32_UINT;
-	ibView.SizeInBytes = sizeof(unsigned int) * indexCount;
+	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * indexCount);
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 }
 
 //Return whole ComPtr Objects
 D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() { return vbView; }
-D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView;  }
+D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
 
 size_t Mesh::GetVertexCount() const { return vertices; }
 size_t Mesh::GetIndexCount() const { return indices; }
