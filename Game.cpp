@@ -22,6 +22,8 @@ Game::Game()
 {
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
+
+	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f));
 }
 
 
@@ -43,49 +45,29 @@ Game::~Game()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
-	// Create some temporary variables to represent colors
-	// - Not necessary, just makes things more readable
-	XMFLOAT4 red = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-	XMFLOAT4 green = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
-	XMFLOAT4 blue = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	const static std::wstring assetPath = L"../../../../Assets/";
 
-	// Set up the vertices of the triangle we would like to draw
-	// - We're going to copy this array, exactly as it exists in CPU memory
-	//    over to a Direct3D-controlled data structure on the GPU (the vertex buffer)
-	// - Note: Since we don't have a camera or really any concept of
-	//    a "3d world" yet, we're simply describing positions within the
-	//    bounds of how the rasterizer sees our screen: [-1 to +1] on X and Y
-	// - This means (0,0) is at the very center of the screen.
-	// - These are known as "Normalized Device Coordinates" or "Homogeneous 
-	//    Screen Coords", which are ways to describe a position without
-	//    knowing the exact size (in pixels) of the image/window/etc.  
-	// - Long story short: Resizing the window also resizes the triangle,
-	//    since we're describing the triangle in terms of the window itself
-	Vertex vertices[] =
-	{
-		{ XMFLOAT3(+0.0f, +0.5f, +0.0f), red },
-		{ XMFLOAT3(+0.5f, -0.5f, +0.0f), blue },
-		{ XMFLOAT3(-0.5f, -0.5f, +0.0f), green },
-	};
+	// Load meshes
+	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube", FixPath(assetPath + L"Meshes/cube.obj").c_str());
+	std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>("Sphere", FixPath(assetPath + L"Meshes/sphere.obj").c_str());
+	std::shared_ptr<Mesh> helix = std::make_shared<Mesh>("Helix", FixPath(assetPath + L"Meshes/helix.obj").c_str());
+	std::shared_ptr<Mesh> torus = std::make_shared<Mesh>("Torus", FixPath(assetPath + L"Meshes/torus.obj").c_str());
+	std::shared_ptr<Mesh> cylinder = std::make_shared<Mesh>("Cylinder", FixPath(assetPath + L"Meshes/cylinder.obj").c_str());
 
-	// Set up indices, which tell us which vertices to use and in which order
-	// - This is redundant for just 3 vertices, but will be more useful later
-	// - Indices are technically not required if the vertices are in the buffer 
-	//    in the correct order and each one will be used exactly once
-	// - But just to see how it's done...
-	unsigned int indices[] = { 0, 1, 2 };
+	// Create entities
+	std::shared_ptr<Entity> entityCube = std::make_shared<Entity>(cube);
+	entityCube->GetTransform()->SetPosition(3, 0, 0);
 
+	std::shared_ptr<Entity> entityHelix = std::make_shared<Entity>(helix);
+	entityHelix->GetTransform()->SetPosition(0, 0, 0);
 
-	// Create the two buffers
-	vertexBuffer = Graphics::CreateStaticBuffer(sizeof(Vertex), ARRAYSIZE(vertices), vertices);
-	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), ARRAYSIZE(indices), indices);
-	// Set up the views
-	vbView.StrideInBytes = sizeof(Vertex);
-	vbView.SizeInBytes = sizeof(Vertex) * ARRAYSIZE(vertices);
-	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-	ibView.Format = DXGI_FORMAT_R32_UINT;
-	ibView.SizeInBytes = sizeof(unsigned int) * ARRAYSIZE(indices);
-	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+	std::shared_ptr<Entity> entitySphere = std::make_shared<Entity>(sphere);
+	entitySphere->GetTransform()->SetPosition(-3, 0, 0);
+
+	// Add to list
+	entities.push_back(entityCube);
+	entities.push_back(entityHelix);
+	entities.push_back(entitySphere);
 }
 
 // --------------------------------------------------------
@@ -247,6 +229,10 @@ void Game::OnResize()
 		scissorRect.top = 0;
 		scissorRect.right = Window::Width();
 		scissorRect.bottom = Window::Height();
+	}
+
+	if (camera) {
+		camera->UpdateProjectionMatrix(Window::AspectRatio());
 	}
 }
 
