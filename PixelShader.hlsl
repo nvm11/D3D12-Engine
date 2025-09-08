@@ -10,11 +10,8 @@ struct VertexToPixel
 	//  |
 	//  |   Name          Semantic
 	//  |    |                |
-	//  v    v                v
-    float3 localPosition : POSITION; // XYZ position
-    float2 uv : UV; // Texture coord
-    float3 normal : NORMAL; // Normal vector
-    float3 tangent : TANGENT; // Tangent vector
+	//  v    v                
+    float4 screenPosition : SV_POSITION;
 };
 
 // --------------------------------------------------------

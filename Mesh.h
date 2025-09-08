@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include "Vertex.h"
+#include <string>
 
 class Mesh
 {
@@ -23,11 +24,10 @@ private:
 	void CalculateTangents(Vertex* verts, size_t numVerts, unsigned int* indices, size_t numIndices);
 
 public:
-	//Constructor
-	//Creates buffers and 
+	// Constructors
+	Mesh(const std::wstring& meshData);
 	Mesh(Vertex* vertexData, unsigned int* indexData, size_t vertexCount, size_t indexCount);
 
-	Mesh(const char* meshData);
 
 	//Destructor
 	//most likely empty, still necessary so ComPtrs clean up
@@ -37,9 +37,9 @@ public:
 
 	//Getters
 	// Returns view to the vertex buffer
-	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const;
+	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 	// Returns the view to the index buffer
-	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const;
+	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	//Returns number of indices
 	size_t GetIndexCount() const;
 	//Returns number of vertices

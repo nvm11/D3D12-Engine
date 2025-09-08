@@ -22,7 +22,7 @@ public:
 	void OnResize();
 
 private:
-
+	const std::wstring assetPath = L"../../Assets/";
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void CreateGeometry();
 	void CreateRootSigAndPipelineState();
