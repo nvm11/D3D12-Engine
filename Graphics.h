@@ -63,6 +63,21 @@ namespace Graphics
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(
 		size_t dataStride, size_t dataCount, void* data);
 
+	// Textures
+	// Maximum number of texture descriptors (SRVs) we can have.
+	// Each material will have a chunk of this,
+	// Note: If we delayed the creation of this heap until
+	// after all textures and materials were created,
+	// we could come up with an exact amount. The following
+	// constant ensures we (hopefully) never run out of room.
+	const unsigned int MaxTextureDescriptors = 1000;
+	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
+	// Takes a texture's SRV, then copies that SRV into the heap and
+	// returns a handle you can set for the GPU to use during rendering.
+	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
+		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy,
+		unsigned int numDescriptorsToCopy);
+
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList();
 	void CloseAndExecuteCommandList();
