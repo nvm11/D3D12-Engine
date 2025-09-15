@@ -13,12 +13,15 @@ public:
 
 	// --FUNCTIONS --
 
+	void AddTexture(D3D12_CPU_DESCRIPTOR_HANDLE srv, int slot);
+	void FinalizeMaterial();
+
 	// Getters
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPipelineState();
-	DirectX::XMFLOAT2 GetUVScale();
-	DirectX::XMFLOAT2 GetUVOffset();
-	DirectX::XMFLOAT3 GetColorTint();
-	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs();
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPipelineState() const;
+	DirectX::XMFLOAT2 GetUVScale() const;
+	DirectX::XMFLOAT2 GetUVOffset() const;
+	DirectX::XMFLOAT3 GetColorTint() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs() const;
 
 	// Setters
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);

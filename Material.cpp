@@ -1,4 +1,5 @@
 #include "Material.h"
+#include "Graphics.h"
 
 Material::Material(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 	DirectX::XMFLOAT3 colorTint,
@@ -15,27 +16,60 @@ Material::Material(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 	ZeroMemory(textureSRVsBySlot, sizeof(D3D12_CPU_DESCRIPTOR_HANDLE) * 128);
 }
 
-Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState()
+void Material::AddTexture(D3D12_CPU_DESCRIPTOR_HANDLE srv, int slot)
+{
+	// Check slot is valid
+	if (slot < 0 || slot > 128) {
+		return;
+	}
+
+	// Add to slot of handle
+	textureSRVsBySlot[slot] = srv;
+	highestSRVIndex = max(highestSRVIndex, slot);
+}
+
+void Material::FinalizeMaterial()
+{
+	// Check if already finalized
+	if (finalized) {
+		return;
+	}
+
+	// If not, copy SRVs to make them shader-visible
+	for (int i = 0; i <= highestSRVIndex; i++) {
+		// Copy the srv
+		// (could do multiple if they were in the same heap)
+		const auto gpuHandle = Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(textureSRVsBySlot[i], 1);
+
+		//Save the first handle for later reference
+		if (i == 0) { finalGPUHandleForSRVs = gpuHandle;  }
+	}
+
+	// Mark material as complete
+	finalized = true;
+}
+
+Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState() const
 {
 	return pipelineState;
 }
 
-DirectX::XMFLOAT2 Material::GetUVScale()
+DirectX::XMFLOAT2 Material::GetUVScale() const
 {
 	return scale;
 }
 
-DirectX::XMFLOAT2 Material::GetUVOffset()
+DirectX::XMFLOAT2 Material::GetUVOffset() const
 {
 	return offset;
 }
 
-DirectX::XMFLOAT3 Material::GetColorTint()
+DirectX::XMFLOAT3 Material::GetColorTint() const
 {
 	return colorTint;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs()
+D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() const
 {
 	return finalGPUHandleForSRVs;
 }
