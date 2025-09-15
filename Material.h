@@ -7,7 +7,7 @@ class Material
 public:
 	// --CONSTRUCTORS--
 	Material(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
-		DirectX::XMFLOAT3 colorTint = DirectX::XMFLOAT3(0, 0, 0),
+		DirectX::XMFLOAT3 colorTint = DirectX::XMFLOAT3(1, 1, 1),
 		DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(0, 0),
 		DirectX::XMFLOAT2 offset = DirectX::XMFLOAT2(0, 0));
 

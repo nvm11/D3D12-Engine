@@ -51,6 +51,24 @@ Game::~Game()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
+	// Load Textures
+	// Cobblestone
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormals = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
+
+	//Create materials
+	// Samplers are handled by a single static sampler
+	// This can be found in the root signature
+	// Cobblestone
+	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineState);
+	cobbleMat->AddTexture(cobblestoneAlbedo, 0);
+	cobbleMat->AddTexture(cobblestoneNormals, 1);
+	cobbleMat->AddTexture(cobblestoneRoughness, 2);
+	cobbleMat->AddTexture(cobblestoneMetal, 3);
+	cobbleMat->FinalizeMaterial();
+
 	// Load meshes
 	const std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cube.obj").c_str());
 	const std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
@@ -76,6 +94,11 @@ void Game::CreateGeometry()
 	entities.push_back(entityHelix);
 	entities.push_back(entitySphere);
 	entities.push_back(entityTorus);
+
+	// Add material to entites
+	for (auto& e : entities) {
+		e->SetMaterial(cobbleMat);
+	}
 }
 
 // --------------------------------------------------------
