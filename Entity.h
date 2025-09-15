@@ -11,6 +11,7 @@ public:
 	
 	std::shared_ptr<Mesh> GetMesh() const;
 	std::shared_ptr<Transform> GetTransform() const;
+	std::shared_ptr<Material> GetMaterial() const;
 
 	void SetMesh(std::shared_ptr<Mesh> mesh);
 	void SetMaterial(std::shared_ptr<Material> material);

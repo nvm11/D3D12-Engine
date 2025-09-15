@@ -53,10 +53,10 @@ void Game::CreateGeometry()
 {
 	// Load Textures
 	// Cobblestone
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormals = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = Graphics::LoadTexture(FixPath(assetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormals = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_normals.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_roughness.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_metal.png").c_str());
 
 	//Create materials
 	// Samplers are handled by a single static sampler
@@ -433,9 +433,10 @@ void Game::Draw(float deltaTime, float totalTime)
 		for (auto& e : entities) {
 			// Fill out data to draw
 			VertexShaderExternalData vsData = {};
-			vsData.World = e->GetTransform()->GetWorldMatrix();
-			vsData.View = camera->GetView();
-			vsData.Projection = camera->GetProjection();
+			vsData.world = e->GetTransform()->GetWorldMatrix();
+			vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+			vsData.view = camera->GetView();
+			vsData.projection = camera->GetProjection();
 
 			// Copy Data to the GPU
 			D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
@@ -443,12 +444,39 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			// "Set" the handle
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+			
+			// Get Material
+			std::shared_ptr<Material> mat = e->GetMaterial();
+
+			// Pixel shader data
+			PixelShaderExternalData psData = {};
+			psData.uvScale = mat->GetUVScale();
+			psData.uvOffset = mat->GetUVOffset();
+
+			// Send this to a chunk of the constant buffer heap
+			// and grab the GPU handle for it so we can set it for this draw
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psData), sizeof(PixelShaderExternalData));
+
+			// Set this constant buffer handle
+			// Note: This assumes that descriptor table 1 is the
+			//       place to put this particular descriptor.  This
+			//       is based on how we set up our root signature.
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
 
 			// Set entity buffers
 			D3D12_VERTEX_BUFFER_VIEW vbv = e->GetMesh()->GetVertexBufferView();
 			D3D12_INDEX_BUFFER_VIEW  ibv = e->GetMesh()->GetIndexBufferView();
 			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
 			Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+			// Change pipeline state
+			Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+			// Set the SRV descriptor handle for this material's textures
+			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(
+				2, mat->GetFinalGPUHandleForSRVs());
+
 
 			// Draw
 			Graphics::CommandList->DrawIndexedInstanced((UINT)e->GetMesh()->GetIndexCount(), 1, 0, 0, 0);

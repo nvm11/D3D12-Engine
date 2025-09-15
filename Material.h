@@ -8,7 +8,7 @@ public:
 	// --CONSTRUCTORS--
 	Material(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 		DirectX::XMFLOAT3 colorTint = DirectX::XMFLOAT3(1, 1, 1),
-		DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(0, 0),
+		DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(1.0f, 1.0f),
 		DirectX::XMFLOAT2 offset = DirectX::XMFLOAT2(0, 0));
 
 	// --FUNCTIONS --
@@ -32,7 +32,7 @@ public:
 private:
 	// Material properties
 	DirectX::XMFLOAT3 colorTint;
-	DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(1, 1); // uv scale
+	DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(1.0f, 1.0f); // uv scale
 	DirectX::XMFLOAT2 offset = DirectX::XMFLOAT2(0, 0); // uv offset
 
 	// Pipeline state and descriptors

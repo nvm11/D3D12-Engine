@@ -2,7 +2,13 @@
 #include <DirectXMath.h>
 
 struct VertexShaderExternalData {
-	DirectX::XMFLOAT4X4 World;
-	DirectX::XMFLOAT4X4 View;
-	DirectX::XMFLOAT4X4 Projection;
+	DirectX::XMFLOAT4X4 world;
+	DirectX::XMFLOAT4X4 worldInverseTranspose;
+	DirectX::XMFLOAT4X4 view;
+	DirectX::XMFLOAT4X4 projection;
+};
+
+struct PixelShaderExternalData {
+	DirectX::XMFLOAT2 uvScale;
+	DirectX::XMFLOAT2 uvOffset;
 };
