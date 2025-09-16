@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include <vector>
 #include "PathHelpers.h"
+#include "Light.h"
 
 class Game
 {
@@ -47,5 +48,7 @@ private:
 	// Scene
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<Entity>> entities;
+	unsigned int lightCount = 0;
+	std::vector<Light> lights;
 };
 

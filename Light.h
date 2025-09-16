@@ -6,6 +6,8 @@
 #define LIGHT_TYPE_POINT	   1
 #define LIGHT_TYPE_SPOT		   2
 
+#define MAX_LIGHTS 128
+
 struct Light
 {
 	//fields

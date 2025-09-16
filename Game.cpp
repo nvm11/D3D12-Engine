@@ -99,6 +99,19 @@ void Game::CreateGeometry()
 	for (auto& e : entities) {
 		e->SetMaterial(cobbleMat);
 	}
+
+	// Create Lights
+	Light directionLight = {};
+	directionLight.type = LIGHT_TYPE_DIRECTIONAL;
+	directionLight.direction = XMFLOAT3(-1.0f, 0.0f, 1.0f);
+	directionLight.color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	directionLight.intensity = 1.0f;
+
+	// Add to vector
+	lights.push_back(directionLight);
+	// Increment light count
+	lightCount++;
+	
 }
 
 // --------------------------------------------------------
@@ -452,6 +465,10 @@ void Game::Draw(float deltaTime, float totalTime)
 			PixelShaderExternalData psData = {};
 			psData.uvScale = mat->GetUVScale();
 			psData.uvOffset = mat->GetUVOffset();
+			psData.cameraPosition = camera->GetTransform().GetPosition();
+			psData.lightCount = lightCount;
+			memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+			
 
 			// Send this to a chunk of the constant buffer heap
 			// and grab the GPU handle for it so we can set it for this draw

@@ -362,16 +362,16 @@ float3 CalculateTotalLightPBR(int numLights, Light lights[MAX_LIGHTS], float3 no
         {
             case LIGHT_TYPE_DIRECTIONAL:
                 float3 directionLight = DirectionLightPBR(currentLight, normal, surfaceToCamera, roughness, metalness, surfaceColor, specularColor);
-                
-                if (i == 0)
-                {
-                    totalLight += directionLight * shadowAmount;
-                }
-                else
-                {
+                // TODO: implement shadow logic
+                //if (i == 0)
+                //{
+                    //totalLight += directionLight * shadowAmount;
+                //}
+                //else
+                //{
                     totalLight += directionLight;
 
-                }
+                //}
                 break;
             case LIGHT_TYPE_POINT:
                 totalLight += PointLightPBR(currentLight, normal, surfaceToCamera, worldPos, roughness, metalness, surfaceColor, specularColor);

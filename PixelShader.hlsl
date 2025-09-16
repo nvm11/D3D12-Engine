@@ -55,19 +55,37 @@ float4 main(VertexToPixel input) : SV_TARGET
     input.uv = input.uv * uvScale + uvOffset;
 
 	// Normal mapping
-    //input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+    input.normal = NormalFromMap(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
 
 	// Surface color with gamma correction
-    float4 surfaceColor = AlbedoTexture.Sample(BasicSampler, input.uv);
-    //surfaceColor.rgb = pow(surfaceColor.rgb, 2.2) * 2;
+    float3 surfaceColor = AlbedoTexture.Sample(BasicSampler, input.uv).rgb;
+    surfaceColor = pow(surfaceColor.rgb, 2.2) * 2;
 	
-	// Sample the other maps
+	// Sample roughness
     float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
-    float metal = MetalMap.Sample(BasicSampler, input.uv).r;
+    // Sample metalness
+    float metalness = MetalMap.Sample(BasicSampler, input.uv).r;
+    
+    // Get the specular color
+    // Metals tint reflections, non metals don't (typically)
+    float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
 	
+    //Begin lighting calculations
+	//include ambient lighting ONCE
+    float3 totalLight = float3(0, 0, 0);
+	
+	//angle the surface is viewed from
+    float3 surfaceToCamera = normalize(cameraPosition - input.worldPos);
+	
+	//apply the total lighting
+    totalLight += CalculateTotalLightPBR(lightCount, lights, input.normal, surfaceToCamera, input.worldPos, roughness, metalness, surfaceColor, specularColor, 0.0f);
+	
+	//return modified color
+    return float4(GammaCorrect(totalLight), 1);
+    
 	// Just return the input color
 	// - This color (like most values passing through the rasterizer) is 
 	//   interpolated for each pixel between the corresponding vertices 
 	//   of the triangle we're rendering
-    return surfaceColor;
+    return float4(GammaCorrect(totalLight), 1);
 }
