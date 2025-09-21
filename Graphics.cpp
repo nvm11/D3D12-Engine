@@ -140,19 +140,19 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			Device->CreateCommandAllocator(
 				D3D12_COMMAND_LIST_TYPE_DIRECT,
 				IID_PPV_ARGS(CommandAllocator[i].GetAddressOf()));
-			// Command queue
-			D3D12_COMMAND_QUEUE_DESC qDesc = {};
-			qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-			qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-			Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
-			// Command list
-			Device->CreateCommandList(
-				0, // Which physical GPU will handle these tasks? 0 for single GPU setup
-				D3D12_COMMAND_LIST_TYPE_DIRECT,// Type of command list
-				CommandAllocator[i].Get(), // The allocator for this list
-				0, // Initial pipeline state - none for now
-				IID_PPV_ARGS(CommandList.GetAddressOf()));
 		}
+		// Command queue
+		D3D12_COMMAND_QUEUE_DESC qDesc = {};
+		qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
+		// Command list
+		Device->CreateCommandList(
+			0, // Which physical GPU will handle these tasks? 0 for single GPU setup
+			D3D12_COMMAND_LIST_TYPE_DIRECT,// Type of command list
+			CommandAllocator[0].Get(), // The allocator for this list
+			0, // Initial pipeline state - none for now
+			IID_PPV_ARGS(CommandList.GetAddressOf()));
 	}
 
 	// Swap chain creation
@@ -262,9 +262,14 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 
 	// Create the fence for basic synchronization
 	{
+		// Our basic "wait for GPU" hard stop
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
 		WaitFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
 		WaitFenceCounter = 0;
+
+		// Fence for syncing frames "in flight"
+		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(FrameSyncFence.GetAddressOf()));
+		FrameSyncFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
 	}
 
 	// Create the CBV/SRV descriptor heap
@@ -640,7 +645,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescripto
 // --------------------------------------------------------
 void Graphics::ResetAllocatorAndCommandList(unsigned int index)
 {
-	CommandAllocator->Reset();
+	CommandAllocator[index]->Reset();
 	CommandList->Reset(CommandAllocator[index].Get(), 0);
 }
 
