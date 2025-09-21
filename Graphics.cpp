@@ -454,8 +454,24 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 // --------------------------------------------------------
 void Graphics::AdvanceSwapChainIndex()
 {
-	currentBackBufferIndex++;
-	currentBackBufferIndex %= NumBackBuffers;
+	// Grab current fence value and signal into the command queue with it
+	UINT64 currentFenceCounter = FrameSyncFenceCounters[currentBackBufferIndex];
+	CommandQueue->Signal(FrameSyncFence.Get(), currentFenceCounter);
+	// Calculate the next index
+	unsigned int nextBuffer = currentBackBufferIndex + 1;
+	nextBuffer %= NumBackBuffers;
+	// Do we need to wait for the next frame?
+	if (FrameSyncFence->GetCompletedValue() < FrameSyncFenceCounters[nextBuffer])
+	{
+		// Not completed, so we wait
+		FrameSyncFence->SetEventOnCompletion(FrameSyncFenceCounters[nextBuffer], FrameSyncFenceEvent);
+		WaitForSingleObject(FrameSyncFenceEvent, INFINITE);
+	}
+	// Frame is done, so update the next frame's counter
+	FrameSyncFenceCounters[nextBuffer] = currentFenceCounter + 1;
+	// Return the new buffer index, which the caller can
+	// use to track which buffer to use for the next frame
+	currentBackBufferIndex = nextBuffer;
 }
 
 // --------------------------------------------------------

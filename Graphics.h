@@ -15,9 +15,9 @@ namespace Graphics
 	// --- CONSTANTS ---
 	// Frame Sync
 	const unsigned int NumBackBuffers = 3;
-	inline Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence[NumBackBuffers];
+	inline Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence;
 	inline HANDLE FrameSyncFenceEvent = 0;
-	inline UINT64 FrameSynceFenceCounters[NumBackBuffers]{};
+	inline UINT64 FrameSyncFenceCounters[NumBackBuffers]{};
 	// --- GLOBAL VARS ---
 	// Primary D3D12 API objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device> Device;
