@@ -620,7 +620,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescripto
 // Always wait before reseting command allocator, as it should not
 // be reset while the GPU is processing a command list
 // --------------------------------------------------------
-void Graphics::ResetAllocatorAndCommandList()
+void Graphics::ResetAllocatorAndCommandList(unsigned int index)
 {
 	CommandAllocator->Reset();
 	CommandList->Reset(CommandAllocator.Get(), 0);

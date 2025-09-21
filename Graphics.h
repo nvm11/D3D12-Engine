@@ -82,8 +82,14 @@ namespace Graphics
 		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy,
 		unsigned int numDescriptorsToCopy);
 
+	// Frame Sync
+	const unsigned int NumBackBuffers = 3;
+	Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence[NumBackBuffers];
+	HANDLE FrameSyncFenceEvent = 0;
+	UINT64 FrameSynceFenceCounters[NumBackBuffers]{};
+
 	// Command list & synchronization
-	void ResetAllocatorAndCommandList();
+	void ResetAllocatorAndCommandList(unsigned int index);
 	void CloseAndExecuteCommandList();
 	void WaitForGPU();
 
