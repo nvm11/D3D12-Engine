@@ -135,22 +135,24 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Set up D3D12 command allocator / queue / list,
 	// which are necessary pieces for issuing standard API calls
 	{
-		// Set up allocator
-		Device->CreateCommandAllocator(
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(CommandAllocator.GetAddressOf()));
-		// Command queue
-		D3D12_COMMAND_QUEUE_DESC qDesc = {};
-		qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-		qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
-		// Command list
-		Device->CreateCommandList(
-			0, // Which physical GPU will handle these tasks? 0 for single GPU setup
-			D3D12_COMMAND_LIST_TYPE_DIRECT,// Type of command list
-			CommandAllocator.Get(), // The allocator for this list
-			0, // Initial pipeline state - none for now
-			IID_PPV_ARGS(CommandList.GetAddressOf()));
+		// Set up allocators
+		for (unsigned int i = 0; i < NumBackBuffers; i++) {
+			Device->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(CommandAllocator[i].GetAddressOf()));
+			// Command queue
+			D3D12_COMMAND_QUEUE_DESC qDesc = {};
+			qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+			qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+			Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
+			// Command list
+			Device->CreateCommandList(
+				0, // Which physical GPU will handle these tasks? 0 for single GPU setup
+				D3D12_COMMAND_LIST_TYPE_DIRECT,// Type of command list
+				CommandAllocator[i].Get(), // The allocator for this list
+				0, // Initial pipeline state - none for now
+				IID_PPV_ARGS(CommandList.GetAddressOf()));
+		}
 	}
 
 	// Swap chain creation
@@ -623,7 +625,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescripto
 void Graphics::ResetAllocatorAndCommandList(unsigned int index)
 {
 	CommandAllocator->Reset();
-	CommandList->Reset(CommandAllocator.Get(), 0);
+	CommandList->Reset(CommandAllocator[index].Get(), 0);
 }
 
 // --------------------------------------------------------

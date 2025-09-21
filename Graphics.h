@@ -13,13 +13,17 @@
 namespace Graphics
 {
 	// --- CONSTANTS ---
-	const unsigned int NumBackBuffers = 2;
+	// Frame Sync
+	const unsigned int NumBackBuffers = 3;
+	inline Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence[NumBackBuffers];
+	inline HANDLE FrameSyncFenceEvent = 0;
+	inline UINT64 FrameSynceFenceCounters[NumBackBuffers]{};
 	// --- GLOBAL VARS ---
 	// Primary D3D12 API objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device> Device;
 	inline Microsoft::WRL::ComPtr<IDXGISwapChain> SwapChain;
 	// Command submission
-	inline Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
+	inline Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator[NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12CommandQueue> CommandQueue;
 	inline Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> CommandList;
 	// Rendering buffers & descriptors
@@ -81,12 +85,6 @@ namespace Graphics
 	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
 		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy,
 		unsigned int numDescriptorsToCopy);
-
-	// Frame Sync
-	const unsigned int NumBackBuffers = 3;
-	Microsoft::WRL::ComPtr<ID3D12Fence> FrameSyncFence[NumBackBuffers];
-	HANDLE FrameSyncFenceEvent = 0;
-	UINT64 FrameSynceFenceCounters[NumBackBuffers]{};
 
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList(unsigned int index);
