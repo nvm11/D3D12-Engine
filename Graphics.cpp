@@ -294,7 +294,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		// This heap MUST have a size that is a multiple of 256
 		// We'll support up to the max number of CBs if they're
 		// all 256 bytes or less, or fewer overall CBs if they're larger
-		cbUploadHeapSizeInBytes = (UINT64)maxConstantBuffers * 256;
+		cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
 		// Assume the first CB will start at the beginning of the heap
 		// This offset changes as we use more CBs, and wraps around when full
 		cbUploadHeapOffsetInBytes = 0;
@@ -794,11 +794,79 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 		// Increment the offset and loop back to the beginning if necessary
 		// which allows us to treat the descriptor heap as a ring buffer
 		cbvDescriptorOffset++;
-		if (cbvDescriptorOffset >= maxConstantBuffers)
+		if (cbvDescriptorOffset >= MaxConstantBuffers)
 			cbvDescriptorOffset = 0;
 		// Now that the CBV is ready, we return the GPU handle to it
 		// so it can be set as part of the root signature during drawing
 		return gpuHandle;
 	}
+}
+
+// --------------------------------------------------------
+// Helper for creating a basic buffer
+// 
+// size      - How big should the buffer be in bytes
+// heapType  - What kind of D3D12 heap?  Default is D3D12_HEAP_TYPE_DEFAULT
+// state     - What state should the resulting resource be in?  Default is D3D12_RESOURCE_STATE_COMMON
+// flags     - Any special flags?  Default is D3D12_RESOURCE_FLAG_NONE
+// alignment - What's the buffer alignment?  Default is 0
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
+	UINT64 size,
+	D3D12_HEAP_TYPE heapType,
+	D3D12_RESOURCE_STATES state,
+	D3D12_RESOURCE_FLAGS flags,
+	UINT64 alignment)
+{
+	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
+
+	// Describe the heap
+	D3D12_HEAP_PROPERTIES heapDesc = {};
+	heapDesc.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapDesc.CreationNodeMask = 1;
+	heapDesc.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapDesc.Type = heapType;
+	heapDesc.VisibleNodeMask = 1;
+
+	// Describe the resource
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Alignment = alignment;
+	desc.DepthOrArraySize = 1;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Flags = flags;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Height = 1;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.MipLevels = 1;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Width = size; // Size of the buffer
+
+	// Create the buffer
+	Device->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &desc, state, 0, IID_PPV_ARGS(buffer.GetAddressOf()));
+	return buffer;
+}
+
+// --------------------------------------------------------
+// Reserves a slot in the SRV/UAV section of the overall
+// CBV/SRV/UAV descriptor heap.  Handles to CPU and/or GPU
+// are set via parameters.  Pass in 0 to skip a parameter.
+// --------------------------------------------------------
+void Graphics::ReserveDescriptorHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle)
+{
+	// Grab the actual heap start on both sides and offset to the next open SRV/UAV portion
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+
+	// Set the requested handle(s)
+	if (reservedCPUHandle) { *reservedCPUHandle = cpuHandle; }
+	if (reservedGPUHandle) { *reservedGPUHandle = gpuHandle; }
+
+	// Update the overall offset if at least one handle was reserved
+	if (reservedCPUHandle || reservedGPUHandle)
+		srvDescriptorOffset++;
 }
 

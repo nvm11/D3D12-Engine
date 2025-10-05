@@ -513,15 +513,19 @@ void Game::Draw(float deltaTime, float totalTime)
 		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		Graphics::CommandList->ResourceBarrier(1, &rb);
+
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
+
 		// Present the current back buffer and move to the next one
 		bool vsync = Graphics::VsyncState();
-		Graphics::SwapChain->Present(
-			vsync ? 1 : 0,
-			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+		Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 		Graphics::AdvanceSwapChainIndex();
+
+		// Remove this line - the working code doesn't have it:
 		// Wait for the GPU to be done and then reset the command list & allocator
+
+		// Reset the command list & allocator for the upcoming frame
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
 	}
 }

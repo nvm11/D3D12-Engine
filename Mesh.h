@@ -40,6 +40,9 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 	// Returns the view to the index buffer
 	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetVertexBuffer() const;
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetIndexBuffer() const;
+
 	//Returns number of indices
 	size_t GetIndexCount() const;
 	//Returns number of vertices

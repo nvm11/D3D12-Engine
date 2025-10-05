@@ -34,16 +34,11 @@ namespace Graphics
 	inline Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DSVHeap;
 	inline D3D12_CPU_DESCRIPTOR_HANDLE DSVHandle{};
 	// Basic CPU/GPU synchronization
-	inline Microsoft::WRL::ComPtr<ID3D12Fence> WaitFence;
+	inline Microsoft::WRL::ComPtr<ID3D12Fence> WaitFence = 0;
 	inline HANDLE WaitFenceEvent = 0;
 	inline UINT64 WaitFenceCounter = 0;
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;
-
-	// Maximum number of constant buffers, assuming each buffer
-	// is 256 bytes or less. Larger buffers are fine, but will
-	// result in fewer buffers in use at any time
-	const unsigned int maxConstantBuffers = 1000;
 	inline Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CBVSRVDescriptorHeap;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> CBUploadHeap;
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
@@ -93,4 +88,15 @@ namespace Graphics
 
 	// Debug Layer
 	void PrintDebugMessages();
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(
+		UINT64 size,
+		D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+		UINT64 alignment = 0);
+
+	void ReserveDescriptorHeapSlot(
+		D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle,
+		D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
 }
