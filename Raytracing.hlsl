@@ -184,7 +184,6 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	// Get the interpolated vertex data
 	Vertex interpolatedVert = InterpolateVertices(triangleIndex, hitAttributes.barycentrics);
 
-	// Use the resulting data to set the final color
-	// Note: Here is where we would do actual shading!
-	payload.color = interpolatedVert.normal;
+    uint instanceID = InstanceID();
+    payload.color = entityColor[instanceID].rgb;
 }
