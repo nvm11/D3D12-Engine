@@ -17,6 +17,8 @@
 // For the DirectX Math library
 using namespace DirectX;
 
+#define RandomRange(min, max) (float)rand() / RAND_MAX * (max - min) + min
+
 // --------------------------------------------------------
 // The constructor is called after the window and graphics API
 // are initialized but before the game loop begins
@@ -38,11 +40,52 @@ Game::Game()
 		Window::Height(),
 		FixPath(L"RayTracing.cso"));
 
-	sphere = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
+	// Create materials
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState{};
+	std::shared_ptr<Material> greyMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.5f, 0.5f, 0.5f));
+	std::shared_ptr<Material> lightGreyMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.9f, 0.9f, 1));
+
+	// Load mesh(es)
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cube.obj").c_str());
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/torus.obj").c_str());
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
+
+	// Floor
+	std::shared_ptr<Entity> floor = std::make_shared<Entity>(cubeMesh);
+	floor->SetMaterial(greyMat);
+	floor->GetTransform()->SetScale(50.0f, 50.0f, 50.0f);
+	floor->GetTransform()->SetPosition(0, -51, 0);
+	entities.push_back(floor);
+
+	// Spinning torus
+	std::shared_ptr<Entity> t = std::make_shared<Entity>(torusMesh);
+	t->SetMaterial(lightGreyMat);
+	t->GetTransform()->SetScale(2.0f, 2.0f, 2.0f);
+	t->GetTransform()->SetPosition(0, 3, 0);
+	entities.push_back(t);
+
+	for (int i = 0; i < 20; i++)
+	{
+		std::shared_ptr<Material> mat = std::make_shared<Material>(pipelineState, XMFLOAT3(
+			RandomRange(0.0f, 1.0f),
+			RandomRange(0.0f, 1.0f),
+			RandomRange(0.0f, 1.0f)));
+
+		float scale = RandomRange(0.25f, 1.0f);
+
+		std::shared_ptr<Entity> sphereEnt = std::make_shared<Entity>(sphereMesh);
+		sphereEnt->SetMaterial(mat);
+		sphereEnt->GetTransform()->SetScale(scale, scale, scale);
+		sphereEnt->GetTransform()->SetPosition(
+			RandomRange(-6, 6),
+			-1 + scale,
+			RandomRange(-6, 6));
+
+		entities.push_back(sphereEnt);
+	}
 
 	// Create a BLAS for a single mesh, then the TLAS for our “scene”
-	RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphere.get());
-	RayTracing::CreateTopLevelAccelerationStructureForScene();
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
 	Graphics::CloseAndExecuteCommandList();
@@ -95,23 +138,23 @@ void Game::CreateGeometry()
 	const std::shared_ptr<Mesh> cylinder = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cylinder.obj").c_str());
 
 	// Create entities
-	std::shared_ptr<Entity> entityCube = std::make_shared<Entity>(cube);
-	entityCube->GetTransform()->SetPosition(5, 0, 0);
+	//std::shared_ptr<Entity> entityCube = std::make_shared<Entity>(cube);
+	//entityCube->GetTransform()->SetPosition(5, 0, 0);
 
-	std::shared_ptr<Entity> entityHelix = std::make_shared<Entity>(helix);
-	entityHelix->GetTransform()->SetPosition(5, 5, 0);
+	//std::shared_ptr<Entity> entityHelix = std::make_shared<Entity>(helix);
+	//entityHelix->GetTransform()->SetPosition(5, 5, 0);
 
-	std::shared_ptr<Entity> entitySphere = std::make_shared<Entity>(sphere);
-	entitySphere->GetTransform()->SetPosition(-5, 0, 0);
+	//std::shared_ptr<Entity> entitySphere = std::make_shared<Entity>(sphere);
+	//entitySphere->GetTransform()->SetPosition(-5, 0, 0);
 
-	std::shared_ptr<Entity> entityTorus = std::make_shared<Entity>(torus);
-	entitySphere->GetTransform()->SetPosition(-0, 5, 0);
+	//std::shared_ptr<Entity> entityTorus = std::make_shared<Entity>(torus);
+	//entitySphere->GetTransform()->SetPosition(-0, 5, 0);
 
-	// Add to list
-	entities.push_back(entityCube);
-	entities.push_back(entityHelix);
-	entities.push_back(entitySphere);
-	entities.push_back(entityTorus);
+	//// Add to list
+	//entities.push_back(entityCube);
+	//entities.push_back(entityHelix);
+	//entities.push_back(entitySphere);
+	//entities.push_back(entityTorus);
 
 	// Add material to entites
 	for (auto& e : entities) {
@@ -129,7 +172,7 @@ void Game::CreateGeometry()
 	lights.push_back(directionLight);
 	// Increment light count
 	lightCount++;
-	
+
 }
 
 // --------------------------------------------------------
@@ -379,8 +422,8 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	for (auto& e : entities) {
-		e->GetTransform()->Rotate(0, deltaTime, 0);
+	for (auto i = 1; i < entities.size(); i++) {
+		entities[i]->GetTransform()->Rotate(0, deltaTime, deltaTime);
 	}
 }
 
@@ -393,6 +436,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Perform ray trace (which also copies the results to the back buffer)
 	RayTracing::Raytrace(camera, currentBackBuffer);
 
