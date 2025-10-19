@@ -3,6 +3,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <vector>
+#include "Raytracing.h"
 using namespace DirectX;
 
 Mesh::Mesh(Vertex* vertexData, unsigned int* indexData, size_t vertexCount, size_t indexCount) {
@@ -241,6 +242,9 @@ void Mesh::CreateBuffers(Vertex* vertexData, unsigned int* indexData, size_t ver
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * indexCount);
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+
+	// Create the raytracing acceleration structure for this mesh
+	raytracingData = RayTracing::CreateBottomLevelAccelerationStructureForMesh(this);
 }
 
 //Return whole ComPtr Objects
@@ -249,6 +253,11 @@ D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> Mesh::GetVertexBuffer() const { return vertexBuffer; }
 Microsoft::WRL::ComPtr<ID3D12Resource> Mesh::GetIndexBuffer() const { return indexBuffer; }
+
+MeshRaytracingData Mesh::GetRaytracingData() const
+{
+	return raytracingData;
+}
 
 size_t Mesh::GetVertexCount() const { return vertices; }
 size_t Mesh::GetIndexCount() const { return indices; }
