@@ -25,14 +25,18 @@ struct RayPayload
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes struct
 // for triangle attributes, so no need to define our own.  It contains a single float2.
 
-
-
 // === Constant buffers ===
 
 cbuffer SceneData : register(b0)
 {
 	matrix inverseViewProjection;
 	float3 cameraPosition;
+};
+
+#define MAX_INSTANCES_PER_BLAS 100
+cbuffer ObjectData : register(b1)
+{
+    float4 entityColor[MAX_INSTANCES_PER_BLAS];
 };
 
 

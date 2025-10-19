@@ -5,6 +5,7 @@
 #include "PathHelpers.h"
 #include "Window.h"
 #include "BufferStructs.h"
+#include "RayTracing.h"
 #include <iostream>
 
 #include <DirectXMath.h>
@@ -30,6 +31,23 @@ Game::Game()
 		Window::AspectRatio(),
 		0.01f,
 		100.0f);
+
+	// Initialize raytracing
+	RayTracing::Initialize(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
+
+	sphere = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
+
+	// Create a BLAS for a single mesh, then the TLAS for our “scene”
+	RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphere.get());
+	RayTracing::CreateTopLevelAccelerationStructureForScene();
+	// Finalize any initialization and wait for the GPU
+	// before proceeding to the game loop
+	Graphics::CloseAndExecuteCommandList();
+	Graphics::WaitForGPU();
+	Graphics::ResetAllocatorAndCommandList(0);
 }
 
 
@@ -167,146 +185,146 @@ void Game::CreateRootSigAndPipelineState()
 	}
 
 	// Root Signature
-	//{
-	//	// Describe the range of CBVs needed for the vertex shader
-	//	D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
-	//	cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	//	cbvRangeVS.NumDescriptors = 1;
-	//	cbvRangeVS.BaseShaderRegister = 0;
-	//	cbvRangeVS.RegisterSpace = 0;
-	//	cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	{
+		// Describe the range of CBVs needed for the vertex shader
+		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
+		cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeVS.NumDescriptors = 1;
+		cbvRangeVS.BaseShaderRegister = 0;
+		cbvRangeVS.RegisterSpace = 0;
+		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//	// Describe the range of CBVs needed for the pixel shader
-	//	D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
-	//	cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	//	cbvRangePS.NumDescriptors = 1;
-	//	cbvRangePS.BaseShaderRegister = 0;
-	//	cbvRangePS.RegisterSpace = 0;
-	//	cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		// Describe the range of CBVs needed for the pixel shader
+		D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
+		cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangePS.NumDescriptors = 1;
+		cbvRangePS.BaseShaderRegister = 0;
+		cbvRangePS.RegisterSpace = 0;
+		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//	// Create a range of SRV's for textures
-	//	D3D12_DESCRIPTOR_RANGE srvRange = {};
-	//	srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	//	srvRange.NumDescriptors = 4;		// Set to max number of textures at once (match pixel shader!)
-	//	srvRange.BaseShaderRegister = 0;	// Starts at t0 (match pixel shader!)
-	//	srvRange.RegisterSpace = 0;
-	//	srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		// Create a range of SRV's for textures
+		D3D12_DESCRIPTOR_RANGE srvRange = {};
+		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange.NumDescriptors = 4;		// Set to max number of textures at once (match pixel shader!)
+		srvRange.BaseShaderRegister = 0;	// Starts at t0 (match pixel shader!)
+		srvRange.RegisterSpace = 0;
+		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//	// Create the root parameters
-	//	D3D12_ROOT_PARAMETER rootParams[3] = {};
+		// Create the root parameters
+		D3D12_ROOT_PARAMETER rootParams[3] = {};
 
-	//	// CBV table param for vertex shader
-	//	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	//	rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-	//	rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
+		// CBV table param for vertex shader
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
 
-	//	// CBV table param for pixel shader
-	//	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	//	rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-	//	rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
+		// CBV table param for pixel shader
+		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
 
-	//	// SRV table param
-	//	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	//	rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-	//	rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+		// SRV table param
+		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
 
-	//	// Create a single static sampler (available to all pixel shaders at the same slot)
-	//	// Note: This is in lieu of having materials have their own samplers for this demo
-	//	D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
-	//	anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	//	anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	//	anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	//	anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
-	//	anisoWrap.MaxAnisotropy = 16;
-	//	anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
-	//	anisoWrap.ShaderRegister = 0;  // register(s0)
-	//	anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		// Create a single static sampler (available to all pixel shaders at the same slot)
+		// Note: This is in lieu of having materials have their own samplers for this demo
+		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+		anisoWrap.MaxAnisotropy = 16;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 0;  // register(s0)
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	//	D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
 
-	//	// Describe and serialize the root signature
-	//	D3D12_ROOT_SIGNATURE_DESC rootSig = {};
-	//	rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	//	rootSig.NumParameters = ARRAYSIZE(rootParams);
-	//	rootSig.pParameters = rootParams;
-	//	rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
-	//	rootSig.pStaticSamplers = samplers;
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = ARRAYSIZE(rootParams);
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
+		rootSig.pStaticSamplers = samplers;
 
-	//	ID3DBlob* serializedRootSig = 0;
-	//	ID3DBlob* errors = 0;
+		ID3DBlob* serializedRootSig = 0;
+		ID3DBlob* errors = 0;
 
-	//	D3D12SerializeRootSignature(
-	//		&rootSig,
-	//		D3D_ROOT_SIGNATURE_VERSION_1,
-	//		&serializedRootSig,
-	//		&errors);
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
 
-	//	// Check for errors during serialization
-	//	if (errors != 0)
-	//	{
-	//		OutputDebugString((wchar_t*)errors->GetBufferPointer());
-	//	}
+		// Check for errors during serialization
+		if (errors != 0)
+		{
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		}
 
-	//	// Actually create the root sig
-	//	Graphics::Device->CreateRootSignature(
-	//		0,
-	//		serializedRootSig->GetBufferPointer(),
-	//		serializedRootSig->GetBufferSize(),
-	//		IID_PPV_ARGS(rootSignature.GetAddressOf()));
-	//}
+		// Actually create the root sig
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(rootSignature.GetAddressOf()));
+	}
 
-	//// Pipeline state
-	//{
-	//	// Describe the pipeline state
-	//	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	// Pipeline state
+	{
+		// Describe the pipeline state
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 
-	//	// -- Input assembler related ---
-	//	psoDesc.InputLayout.NumElements = inputElementCount;
-	//	psoDesc.InputLayout.pInputElementDescs = inputElements;
-	//	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	//	// Overall primitive topology type (triangle, line, etc.) is set here 
-	//	// IASetPrimTop() is still used to set list/strip/adj options
-	//	// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
+		// -- Input assembler related ---
+		psoDesc.InputLayout.NumElements = inputElementCount;
+		psoDesc.InputLayout.pInputElementDescs = inputElements;
+		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		// Overall primitive topology type (triangle, line, etc.) is set here 
+		// IASetPrimTop() is still used to set list/strip/adj options
+		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
 
-	//	// Root sig
-	//	psoDesc.pRootSignature = rootSignature.Get();
+		// Root sig
+		psoDesc.pRootSignature = rootSignature.Get();
 
-	//	// -- Shaders (VS/PS) --- 
-	//	psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
-	//	psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
-	//	psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
-	//	psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+		// -- Shaders (VS/PS) --- 
+		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
+		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
+		psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 
-	//	// -- Render targets ---
-	//	psoDesc.NumRenderTargets = 1;
-	//	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	//	psoDesc.SampleDesc.Count = 1;
-	//	psoDesc.SampleDesc.Quality = 0;
+		// -- Render targets ---
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		psoDesc.SampleDesc.Count = 1;
+		psoDesc.SampleDesc.Quality = 0;
 
-	//	// -- States ---
-	//	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	//	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	//	psoDesc.RasterizerState.DepthClipEnable = true;
+		// -- States ---
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		psoDesc.RasterizerState.DepthClipEnable = true;
 
-	//	psoDesc.DepthStencilState.DepthEnable = true;
-	//	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	//	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		psoDesc.DepthStencilState.DepthEnable = true;
+		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 
-	//	psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-	//	psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
-	//	psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	//	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	//	// -- Misc ---
-	//	psoDesc.SampleMask = 0xffffffff;
+		// -- Misc ---
+		psoDesc.SampleMask = 0xffffffff;
 
-	//	// Create the pipe state object
-	//	Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
-	//}
+		// Create the pipe state object
+		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+	}
 
 	// Set up the viewport and scissor rectangle
 	{
@@ -341,32 +359,12 @@ void Game::CreateRootSigAndPipelineState()
 // --------------------------------------------------------
 void Game::OnResize()
 {
-	// Resize the viewport and scissor rectangle
-	{
-		// Set up the viewport so we render into the correct
-		// portion of the render target
-		viewport = {};
-		viewport.TopLeftX = 0;
-		viewport.TopLeftY = 0;
-		viewport.Width = (float)Window::Width();
-		viewport.Height = (float)Window::Height();
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-		// Define a scissor rectangle that defines a portion of
-		// the render target for clipping. This is different from
-		// a viewport in that it is applied after the pixel shader.
-		// We need at least one of these, but we're rendering to
-		// the entire window, so it'll be the same size.
-		scissorRect = {};
-		scissorRect.left = 0;
-		scissorRect.top = 0;
-		scissorRect.right = Window::Width();
-		scissorRect.bottom = Window::Height();
-	}
-
 	if (camera) {
 		camera->UpdateProjectionMatrix(Window::AspectRatio());
 	}
+
+	// Resize raytracing output texture
+	RayTracing::ResizeOutputUAV(Window::Width(), Window::Height());
 }
 
 
@@ -395,138 +393,23 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
-	// Clearing the render target
-	{
-		// Transition the back buffer from present to render target
-		D3D12_RESOURCE_BARRIER rb = {};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentBackBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		Graphics::CommandList->ResourceBarrier(1, &rb);
-
-		// Background color (Cornflower Blue in this case) for clearing
-		float color[] = { 0.4f, 0.6f, 0.75f, 1.0f };
-
-		// Clear the RTV
-		Graphics::CommandList->ClearRenderTargetView(
-			Graphics::RTVHandles[Graphics::SwapChainIndex()],
-			color,
-			0, 0); // No scissor rectangles
-
-		// Clear the depth buffer, too
-		Graphics::CommandList->ClearDepthStencilView(
-			Graphics::DSVHandle,
-			D3D12_CLEAR_FLAG_DEPTH,
-			1.0f,	// Max depth = 1.0f
-			0,		// Not clearing stencil, but need a value
-			0, 0);	// No scissor rects
-	}
-
-	// Rendering here!
-	//{
-	//	// Set overall pipeline state
-	//	Graphics::CommandList->SetPipelineState(pipelineState.Get());
-
-	//	// Root sig (must happen before root descriptor table)
-	//	Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
-
-	//	Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
-
-	//	// Set up other commands for rendering
-	//	Graphics::CommandList->OMSetRenderTargets(
-	//		1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
-	//	Graphics::CommandList->RSSetViewports(1, &viewport);
-	//	Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-	//	//Graphics::CommandList->IASetVertexBuffers(0, 1, &vbView);
-	//	//Graphics::CommandList->IASetIndexBuffer(&ibView);
-	//	Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//	for (auto& e : entities) {
-	//		// Fill out data to draw
-	//		VertexShaderExternalData vsData = {};
-	//		vsData.world = e->GetTransform()->GetWorldMatrix();
-	//		vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-	//		vsData.view = camera->GetView();
-	//		vsData.projection = camera->GetProjection();
-
-	//		// Copy Data to the GPU
-	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-	//														 (void*)(&vsData), sizeof(VertexShaderExternalData));
-
-	//		// "Set" the handle
-	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
-	//		
-	//		// Get Material
-	//		std::shared_ptr<Material> mat = e->GetMaterial();
-
-	//		// Pixel shader data
-	//		PixelShaderExternalData psData = {};
-	//		psData.uvScale = mat->GetUVScale();
-	//		psData.uvOffset = mat->GetUVOffset();
-	//		psData.cameraPosition = camera->GetTransform().GetPosition();
-	//		psData.lightCount = lightCount;
-	//		memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
-	//		
-
-	//		// Send this to a chunk of the constant buffer heap
-	//		// and grab the GPU handle for it so we can set it for this draw
-	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-	//			(void*)(&psData), sizeof(PixelShaderExternalData));
-
-	//		// Set this constant buffer handle
-	//		// Note: This assumes that descriptor table 1 is the
-	//		//       place to put this particular descriptor.  This
-	//		//       is based on how we set up our root signature.
-	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-
-	//		// Set entity buffers
-	//		D3D12_VERTEX_BUFFER_VIEW vbv = e->GetMesh()->GetVertexBufferView();
-	//		D3D12_INDEX_BUFFER_VIEW  ibv = e->GetMesh()->GetIndexBufferView();
-	//		Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
-	//		Graphics::CommandList->IASetIndexBuffer(&ibv);
-
-	//		// Change pipeline state
-	//		Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
-	//		// Set the SRV descriptor handle for this material's textures
-	//		// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(
-	//			2, mat->GetFinalGPUHandleForSRVs());
-
-
-	//		// Draw
-	//		Graphics::CommandList->DrawIndexedInstanced((UINT)e->GetMesh()->GetIndexCount(), 1, 0, 0, 0);
-	//	}
-	//	// Draw
-	//	//Graphics::CommandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
-	//}
+	// Perform ray trace (which also copies the results to the back buffer)
+	RayTracing::Raytrace(camera, currentBackBuffer);
 
 	// Present
 	{
-		// Transition back to present
-		D3D12_RESOURCE_BARRIER rb = {};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentBackBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		Graphics::CommandList->ResourceBarrier(1, &rb);
-
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
 
 		// Present the current back buffer and move to the next one
 		bool vsync = Graphics::VsyncState();
 		Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
-		Graphics::AdvanceSwapChainIndex();
 
-		// Remove this line - the working code doesn't have it:
-		// Wait for the GPU to be done and then reset the command list & allocator
+		Graphics::AdvanceSwapChainIndex();
 
 		// Reset the command list & allocator for the upcoming frame
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+
 	}
 }
 

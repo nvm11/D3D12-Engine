@@ -50,5 +50,6 @@ private:
 	std::vector<std::shared_ptr<Entity>> entities;
 	unsigned int lightCount = 0;
 	std::vector<Light> lights;
+	std::shared_ptr<Mesh> sphere;
 };
 

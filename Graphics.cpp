@@ -92,9 +92,9 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	}
 
 	// If we're in debug mode in visual studio, we also
-// want to enable the D3D12 debug layer to see some
-// errors and warnings in Visual Studio's output window
-// when things go wrong!
+	// want to enable the D3D12 debug layer to see some
+	// errors and warnings in Visual Studio's output window
+	// when things go wrong!
 #if defined(DEBUG) || defined(_DEBUG)
 	ID3D12Debug* debugController;
 	D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
@@ -260,7 +260,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			DSVHandle);
 	}
 
-	// Create the fence for basic synchronization
+	// Create the for basic synchronization
 	{
 		// Our basic "wait for GPU" hard stop
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
