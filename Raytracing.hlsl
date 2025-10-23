@@ -55,6 +55,50 @@ ByteAddressBuffer VertexBuffer				: register(t2);
 
 // === Helpers ===
 
+
+// Produces a random float
+// Reference: https://thebookofshaders.com/10/
+float rand(float2 uv)
+{
+    return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+// Produces a hard to predict float 2
+float2 rand2(float2 uv)
+{
+    return float2(rand(uv), rand(uv.yx));
+}
+
+// Params should be from 0-1
+float3 RandomVector(float u0, float u1)
+{
+    float a = u0 * 2 - 1;
+    float b = sqrt(1 - a * a);
+    float phi = 2.0f * PI * u1;
+
+    float x = b * cos(phi);
+    float y = b * sin(phi);
+    float z = a;
+
+    return float3(x, y, z);
+}
+
+// u0 and u1 should be from 0-1
+float3 RandomCosineWeightedHemisphere(float u0, float u1, float3 unitNormal)
+{
+    float a = u0 * 2 - 1;
+    float b = sqrt(1 - a * a);
+    float phi = 2.0f * PI * u1;
+
+    float x = unitNormal.x + b * cos(phi);
+    float y = unitNormal.y + b * sin(phi);
+    float z = unitNormal.z + a;
+
+	// float pdf = a / PI;
+    return float3(x, y, z);
+}
+
+
 // Loads the indices of the specified triangle from the index buffer
 uint3 LoadIndices(uint triangleIndex)
 {
