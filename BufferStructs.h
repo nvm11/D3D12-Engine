@@ -30,4 +30,6 @@ struct RaytracingSceneData
 struct RaytracingEntityData
 {
 	DirectX::XMFLOAT4 color[MAX_INSTANCES_PER_BLAS];
+	unsigned int recursionDepth;
+	unsigned int rayPerPixelIndex;
 };

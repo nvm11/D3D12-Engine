@@ -20,6 +20,8 @@ static const uint VertexSizeInBytes = 11 * 4;
 struct RayPayload
 {
 	float3 color;
+    uint recursionDepth;
+    uint rayPerPixelIndex;
 };
 
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes struct
