@@ -1,4 +1,4 @@
-# Graphics Framework Created Utilizing [D3D12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide)
+# Rendering Engine Created Utilizing [D3D12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/directx-12-programming-guide)
 
 ## Technologies Used
 * C++
