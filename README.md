@@ -11,6 +11,7 @@
 * Material Creation
 * Reading in .obj Files
 * Perspective and Orthogonal Cameras
+* Multi-Frame Synchronization 
 
 ## Current Missing Features
 * ImGui Support
