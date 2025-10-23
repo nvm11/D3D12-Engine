@@ -7,7 +7,7 @@
 
 ## Current Capabilities
 * Rasterization with PBR
-* Real-time Raytracing
+* Real-time Pathtracing
 * Material Creation
 * Reading in .obj Files
 * Perspective and Orthogonal Cameras
