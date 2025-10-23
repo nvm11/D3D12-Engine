@@ -242,10 +242,19 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	//Convert its normal to world space
     float3 worldNormal = normalize(mul(vert.normal, (float3x3) ObjectToWorld4x3()));
 	
-	// Calculate the direction
+	// Calc a random value for the ray based on uv
+    float2 pixelUV = (float2) DispatchRaysIndex().xy / DispatchRaysDimensions().xy;
+    float2 rng = rand2(pixelUV * (payload.recursionDepth + 1) + payload.rayPerPixelIndex + RayTCurrent());
+	
+	// Interpolate between perfect reflection and random bounce based on roughness (color tint)
+    float3 refl = reflect(WorldRayDirection(), worldNormal);
+    float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), worldNormal);
+    float3 dir = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
+	
+	//Generate new direction
     RayDesc ray;
     ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-    ray.Direction = reflect(WorldRayDirection(), worldNormal);
+    ray.Direction = dir;
     ray.TMin = 0.0001f;
     ray.TMax = 1000.0f;
 
