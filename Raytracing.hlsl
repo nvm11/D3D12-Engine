@@ -187,29 +187,43 @@ RayDesc CalcRayFromCamera(float2 rayIndices)
 void RayGen()
 {
 	// Get the ray indices
-	uint2 rayIndices = DispatchRaysIndex().xy;
+    uint2 rayIndices = DispatchRaysIndex().xy;
+	
+	// Average of all rays per pixel
+    float3 totalColor = float3(0, 0, 0);
+    int raysPerPixel = 25;
+    for (int r = 0; r < raysPerPixel; r++)
+    {
+        float2 adjustedIndices = (float2) rayIndices;
+        float ray01 = (float) r / raysPerPixel;
+        adjustedIndices += rand2(rayIndices.xy * ray01);
+		
+		// Calculate the ray from the camera through a particular
+		// pixel of the output buffer using this shader's indices
+        RayDesc ray = CalcRayFromCamera(adjustedIndices);
 
-	// Calculate the ray from the camera through a particular
-	// pixel of the output buffer using this shader's indices
-	RayDesc ray = CalcRayFromCamera(rayIndices);
-
-	// Set up the payload for the ray
-	// This initializes the struct to all zeros
-	RayPayload payload = (RayPayload)0;
-
-	// Perform the ray trace for this ray
-	TraceRay(
-		SceneTLAS,
-		RAY_FLAG_NONE,
-		0xFF,
-		0,
-		0,
-		0,
-		ray,
-		payload);
-
-	// Set the final color of the buffer
-	OutputColor[rayIndices] = float4(payload.color, 1);
+		// Set up the payload for the ray
+        RayPayload payload;
+        payload.color = float3(1, 1, 1);
+        payload.recursionDepth = 0;
+        payload.rayPerPixelIndex = r;
+		
+		// Perform the ray trace for this ray
+        TraceRay(
+			SceneTLAS,
+			RAY_FLAG_NONE,
+			0xFF,
+			0,
+			0,
+			0,
+			ray,
+			payload);
+		
+        totalColor += payload.color;
+    }
+	
+	// Set the final color of the buffer (gamma corrected)
+    OutputColor[rayIndices] = float4(pow(totalColor / raysPerPixel, 1.0f / 2.2f), 1);
 }
 
 
@@ -217,9 +231,16 @@ void RayGen()
 [shader("miss")]
 void Miss(inout RayPayload payload)
 {
-	// Nothing was hit, so return black for now.
-	// Ideally this is where we would do skybox stuff!
-    payload.color = float3(0.4f, 0.6f, 0.75f);
+	// Hemispheric gradient
+    float3 upColor = float3(0.3f, 0.5f, 0.95f);
+    float3 downColor = float3(1, 1, 1);
+
+	// Interpolate based on the direction of the ray
+    float interpolation = dot(normalize(WorldRayDirection()), float3(0, 1, 0)) * 0.5f + 0.5f;
+    float3 skyColor = lerp(downColor, upColor, interpolation);
+	
+	// Alter the payload color by the sky color
+    payload.color *= skyColor;
 }
 
 
@@ -227,44 +248,42 @@ void Miss(inout RayPayload payload)
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
-	// No light source hit
-	if( payload.recursionDepth >= 10)
+	// If we've reached the max recursion, we haven't hit a light source (the sky, which is the "miss shader" here)
+    if (payload.recursionDepth == 10)
     {
         payload.color = float3(0, 0, 0);
         return;
     }
 	
-	// Adjust the payload color by hit instance's color
+	// We've hit, so adjust the payload color by this instance's color
     payload.color *= entityColor[InstanceID()].rgb;
 	
-	// Get the geometry hit details
-    Vertex vert = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
-	//Convert its normal to world space
-    float3 worldNormal = normalize(mul(vert.normal, (float3x3) ObjectToWorld4x3()));
+	// Get the geometry hit details and convert normal to world space
+    Vertex hit = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
+    float3 normal_WS = normalize(mul(hit.normal, (float3x3) ObjectToWorld4x3()));
 	
-	// Calc a random value for the ray based on uv
+	// Calc a unique RNG value for this ray, based on the "uv" (0-1 location) of this pixel and other per-ray data
     float2 pixelUV = (float2) DispatchRaysIndex().xy / DispatchRaysDimensions().xy;
     float2 rng = rand2(pixelUV * (payload.recursionDepth + 1) + payload.rayPerPixelIndex + RayTCurrent());
 	
-	// Interpolate between perfect reflection and random bounce based on roughness (color tint)
-    float3 refl = reflect(WorldRayDirection(), worldNormal);
-    float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), worldNormal);
+	// Interpolate between perfect reflection and random bounce based on roughness
+    float3 refl = reflect(WorldRayDirection(), normal_WS);
+    float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), normal_WS);
     float3 dir = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
 	
-	//Generate new direction
+	// Create the new recursive ray
     RayDesc ray;
     ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
     ray.Direction = dir;
     ray.TMin = 0.0001f;
     ray.TMax = 1000.0f;
-
-	// Trace again
+	
+	// Recursive ray trace
     payload.recursionDepth++;
     TraceRay(
-	   SceneTLAS,
-	   RAY_FLAG_NONE,
-	   0xFF, 0, 0, 0, // Masks and offsets
-	   ray,
-	   payload
-	);
+		SceneTLAS,
+		RAY_FLAG_NONE,
+		0xFF, 0, 0, 0, // Mask and offsets
+		ray,
+		payload);
 }
