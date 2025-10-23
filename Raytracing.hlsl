@@ -1,4 +1,7 @@
 
+// === Defines ===
+
+#define PI 3.141592654f
 
 // === Structs ===
 
@@ -224,12 +227,35 @@ void Miss(inout RayPayload payload)
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
-	// Grab the index of the triangle we hit
-	uint triangleIndex = PrimitiveIndex();
+	// No light source hit
+	if( payload.recursionDepth >= 10)
+    {
+        payload.color = float3(0, 0, 0);
+        return;
+    }
+	
+	// Adjust the payload color by hit instance's color
+    payload.color *= entityColor[InstanceID()].rgb;
+	
+	// Get the geometry hit details
+    Vertex vert = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
+	//Convert its normal to world space
+    float3 worldNormal = normalize(mul(vert.normal, (float3x3) ObjectToWorld4x3()));
+	
+	// Calculate the direction
+    RayDesc ray;
+    ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    ray.Direction = reflect(WorldRayDirection(), worldNormal);
+    ray.TMin = 0.0001f;
+    ray.TMax = 1000.0f;
 
-	// Get the interpolated vertex data
-	Vertex interpolatedVert = InterpolateVertices(triangleIndex, hitAttributes.barycentrics);
-
-    uint instanceID = InstanceID();
-    payload.color = entityColor[instanceID].rgb;
+	// Trace again
+    payload.recursionDepth++;
+    TraceRay(
+	   SceneTLAS,
+	   RAY_FLAG_NONE,
+	   0xFF, 0, 0, 0, // Masks and offsets
+	   ray,
+	   payload
+	);
 }
