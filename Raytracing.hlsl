@@ -27,6 +27,21 @@ struct RayPayload
     uint rayPerPixelIndex;
 };
 
+struct RayTracingMaterial
+{
+    float3 color;
+    float roughness;
+    float2 uvScale;
+    float2 uvOffset;
+    float metal;
+    float3 padding;
+
+    uint albedoIndex;
+    uint normalMapIndex;
+    uint roughnessIndex;
+    uint metalnessIndex;
+};
+
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes struct
 // for triangle attributes, so no need to define our own.  It contains a single float2.
 
@@ -41,7 +56,7 @@ cbuffer SceneData : register(b0)
 #define MAX_INSTANCES_PER_BLAS 100
 cbuffer ObjectData : register(b1)
 {
-    float4 entityColor[MAX_INSTANCES_PER_BLAS];
+    RayTracingMaterial materials[MAX_INSTANCES_PER_BLAS];
 };
 
 
@@ -59,6 +74,9 @@ ByteAddressBuffer VertexBuffer				: register(t2);
 
 // Textures
 Texture2D AllTextures[] : register(t0, space1);
+
+// Samplers
+SamplerState BasicSampler : register(s0);
 
 // === Helpers ===
 

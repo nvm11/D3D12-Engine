@@ -25,6 +25,22 @@ struct RaytracingSceneData
 	float pad;
 };
 
+// All material data for raytracing
+struct RaytracingMaterial
+{
+	DirectX::XMFLOAT3 color;
+	float roughness;
+	DirectX::XMFLOAT2 uvScale;
+	DirectX::XMFLOAT2 uvOffset;
+	float metal;
+	DirectX::XMFLOAT3 padding;
+
+	unsigned int albedoIndex;
+	unsigned int normalMapIndex;
+	unsigned int roughnessIndex;
+	unsigned int metalnessIndex;
+};
+
 // Per-entity data for raytracing
 #define MAX_INSTANCES_PER_BLAS 100
 struct RaytracingEntityData
