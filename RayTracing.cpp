@@ -107,9 +107,16 @@ void RayTracing::CreateRaytracingRootSignatures()
 		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 		cbufferRange.RegisterSpace = 0;
 
+		D3D12_DESCRIPTOR_RANGE allTexturesRange = {};
+		allTexturesRange.BaseShaderRegister = 0;
+		allTexturesRange.NumDescriptors = UINT_MAX;
+		allTexturesRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		allTexturesRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		allTexturesRange.RegisterSpace = 1;
+
 		// Set up the root parameters for the global signature (of which there are four)
 		// These need to match the shader(s) we'll be using
-		D3D12_ROOT_PARAMETER rootParams[3] = {};
+		D3D12_ROOT_PARAMETER rootParams[4] = {};
 		{
 			// First param is the UAV range for the output texture
 			rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -128,7 +135,25 @@ void RayTracing::CreateRaytracingRootSignatures()
 			rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 			rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
 			rootParams[2].DescriptorTable.pDescriptorRanges = &cbufferRange;
+
+			// Fourth is bindless table
+			rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			rootParams[3].DescriptorTable.NumDescriptorRanges = 1;
+			rootParams[3].DescriptorTable.pDescriptorRanges = &allTexturesRange;
 		}
+
+		// Create a single static sampler (available to all shaders at the same slot)
+		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 0;
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
 
 		// Create the global root signature
 		Microsoft::WRL::ComPtr<ID3DBlob> blob;
@@ -136,8 +161,8 @@ void RayTracing::CreateRaytracingRootSignatures()
 		D3D12_ROOT_SIGNATURE_DESC globalRootSigDesc = {};
 		globalRootSigDesc.NumParameters = ARRAYSIZE(rootParams);
 		globalRootSigDesc.pParameters = rootParams;
-		globalRootSigDesc.NumStaticSamplers = 0;
-		globalRootSigDesc.pStaticSamplers = 0;
+		globalRootSigDesc.NumStaticSamplers = ARRAYSIZE(samplers);
+		globalRootSigDesc.pStaticSamplers = samplers;
 		globalRootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
 		D3D12SerializeRootSignature(&globalRootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, blob.GetAddressOf(), errors.GetAddressOf());
