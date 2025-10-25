@@ -57,6 +57,8 @@ RaytracingAccelerationStructure SceneTLAS	: register(t0);
 ByteAddressBuffer IndexBuffer        		: register(t1);
 ByteAddressBuffer VertexBuffer				: register(t2);
 
+// Textures
+Texture2D AllTextures[] : register(t0, space1);
 
 // === Helpers ===
 
