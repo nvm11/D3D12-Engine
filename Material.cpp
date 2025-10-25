@@ -69,6 +69,16 @@ DirectX::XMFLOAT3 Material::GetColorTint() const
 	return colorTint;
 }
 
+float Material::GetRoughness()
+{
+	return roughness;
+}
+
+float Material::GetMetal()
+{
+	return metal;
+}
+
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() const
 {
 	return finalGPUHandleForSRVs;
@@ -92,4 +102,14 @@ void Material::SetUVOffset(DirectX::XMFLOAT2 offset)
 void Material::SetColorTint(DirectX::XMFLOAT3 colorTint)
 {
 	this->colorTint = colorTint;
+}
+
+void Material::SetRoughness(float roughness)
+{
+	this->roughness = roughness;
+}
+
+void Material::SetMetal(float metal)
+{
+	this->metal = metal;
 }

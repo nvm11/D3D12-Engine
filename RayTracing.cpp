@@ -716,7 +716,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		// - instance ID tells us which instance in that cbuffer
 		std::shared_ptr<Material> mat = entities[i]->GetMaterial();
 		entityData[meshBlasIndex].materials[id.InstanceID].color = mat->GetColorTint();
-		entityData[meshBlasIndex].materials[id.InstanceID].roughness = mat->Roughness();
+		entityData[meshBlasIndex].materials[id.InstanceID].roughness = mat->GetRoughness();
 		entityData[meshBlasIndex].materials[id.InstanceID].metal = mat->GetMetal();
 		entityData[meshBlasIndex].materials[id.InstanceID].uvScale = mat->GetUVScale();
 		entityData[meshBlasIndex].materials[id.InstanceID].uvOffset = mat->GetUVOffset();
