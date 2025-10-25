@@ -702,20 +702,46 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		unsigned int meshBlasIndex = mesh->GetRaytracingData().HitGroupIndex;
 
 		// Create this description and add to our overall set of descriptions
-		D3D12_RAYTRACING_INSTANCE_DESC instDesc = {};
-		instDesc.InstanceContributionToHitGroupIndex = meshBlasIndex;
-		instDesc.InstanceID = instanceIDs[meshBlasIndex];
-		instDesc.InstanceMask = 0xFF;
-		memcpy(&instDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
-		instDesc.AccelerationStructure = mesh->GetRaytracingData().BLAS->GetGPUVirtualAddress();
-		instDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-		instanceDescs.push_back(instDesc);
+		D3D12_RAYTRACING_INSTANCE_DESC id = {};
+		id.InstanceContributionToHitGroupIndex = meshBlasIndex;
+		id.InstanceID = instanceIDs[meshBlasIndex];
+		id.InstanceMask = 0xFF;
+		memcpy(&id.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
+		id.AccelerationStructure = mesh->GetRaytracingData().BLAS->GetGPUVirtualAddress();
+		id.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instanceDescs.push_back(id);
 
 		// Set up the entity data for this entity, too
 		// - mesh index tells us which cbuffer
 		// - instance ID tells us which instance in that cbuffer
-		DirectX::XMFLOAT3 c = entities[i]->GetMaterial()->GetColorTint();
-		entityData[meshBlasIndex].color[instDesc.InstanceID] = DirectX::XMFLOAT4(c.x, c.y, c.z, 1);
+		std::shared_ptr<Material> mat = entities[i]->GetMaterial();
+		entityData[meshBlasIndex].materials[id.InstanceID].color = mat->GetColorTint();
+		entityData[meshBlasIndex].materials[id.InstanceID].roughness = mat->Roughness();
+		entityData[meshBlasIndex].materials[id.InstanceID].metal = mat->GetMetal();
+		entityData[meshBlasIndex].materials[id.InstanceID].uvScale = mat->GetUVScale();
+		entityData[meshBlasIndex].materials[id.InstanceID].uvOffset = mat->GetUVOffset();
+
+		// Set up texture indices (-1 means no texture)
+		unsigned int aIndex = -1;
+		unsigned int nIndex = -1;
+		unsigned int rIndex = -1;
+		unsigned int mIndex = -1;
+
+		// Calculate the actual index of the texture descriptors (if this material has textures)
+		D3D12_GPU_DESCRIPTOR_HANDLE textureHandleStart = mat->GetFinalGPUHandleForSRVs();
+		if (textureHandleStart.ptr != 0)
+		{
+			// Note: This assumes all four textures are always present if the first one is
+			aIndex = Graphics::GetDescriptorIndex(textureHandleStart);
+			nIndex = aIndex + 1;
+			rIndex = aIndex + 2;
+			mIndex = aIndex + 3;
+		}
+
+		entityData[meshBlasIndex].materials[id.InstanceID].albedoIndex = aIndex;
+		entityData[meshBlasIndex].materials[id.InstanceID].normalMapIndex = nIndex;
+		entityData[meshBlasIndex].materials[id.InstanceID].roughnessIndex = rIndex;
+		entityData[meshBlasIndex].materials[id.InstanceID].metalnessIndex = mIndex;
 
 		// On to the next instance for this mesh
 		instanceIDs[meshBlasIndex]++;
