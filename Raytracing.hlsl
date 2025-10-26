@@ -138,6 +138,15 @@ float3 NormalMapping(float3 normalFromMap, float3 normal, float3 tangent)
     return normalize(mul(normalFromMap, TBN));
 }
 
+float FresnelView(float3 n, float3 v, float f0)
+{
+	// Pre-calculations
+    float NdotV = saturate(dot(n, v));
+
+	// Final value
+    return f0 + (1 - f0) * pow(1 - NdotV, 5);
+}
+
 
 // Loads the indices of the specified triangle from the index buffer
 uint3 LoadIndices(uint triangleIndex)
@@ -306,11 +315,13 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     {
         hit.uv = hit.uv * material.uvScale + material.uvOffset;
         surfaceColor = pow(AllTextures[material.albedoIndex].SampleLevel(BasicSampler, hit.uv, 0).rgb, 2.2f);
-        roughness = pow(AllTextures[material.roughnessIndex].SampleLevel(BasicSampler, hit.uv, 0).r, 2); // Squared remap
+        roughness = pow(AllTextures[material.roughnessIndex].SampleLevel(BasicSampler, hit.uv, 0).r, 2);
         metal = AllTextures[material.metalnessIndex].SampleLevel(BasicSampler, hit.uv, 0).r;
 
         float3 normalFromMap = AllTextures[material.normalMapIndex].SampleLevel(BasicSampler, hit.uv, 0).rgb * 2 - 1;
         normal_WS = NormalMapping(normalFromMap, normal_WS, tangent_WS);
+        payload.color = metal.rrr;
+        return;
     }
 	
 	// Calc a unique RNG value for this ray, based on the "uv" (0-1 location) of this pixel and other per-ray data
@@ -321,9 +332,12 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
     float3 refl = reflect(WorldRayDirection(), normal_WS);
     float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), normal_WS);
     float3 dir = normalize(lerp(refl, randomBounce, roughness));
+    
+    float fres = FresnelView(-WorldRayDirection(), normal_WS, lerp(0.04f, 1.0f, metal));
+    dir = normalize(lerp(randomBounce, dir, fres > rng.x));
 	
     float3 roughnessBounceColor = lerp(float3(1, 1, 1), surfaceColor, roughness); // Dir is roughness-based, so color is too
-    float3 diffuseColor = lerp(surfaceColor, roughnessBounceColor, rng.x); // Diffuse "reflection" chance
+    float3 diffuseColor = lerp(surfaceColor, roughnessBounceColor, fres > rng.x); // Diffuse "reflection" chance
     float3 finalColor = lerp(diffuseColor, surfaceColor, metal); // Metal always tints
     payload.color *= finalColor;
 	
