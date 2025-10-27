@@ -320,8 +320,6 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 
         float3 normalFromMap = AllTextures[material.normalMapIndex].SampleLevel(BasicSampler, hit.uv, 0).rgb * 2 - 1;
         normal_WS = NormalMapping(normalFromMap, normal_WS, tangent_WS);
-        payload.color = metal.rrr;
-        return;
     }
 	
 	// Calc a unique RNG value for this ray, based on the "uv" (0-1 location) of this pixel and other per-ray data
