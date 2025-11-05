@@ -40,60 +40,6 @@ Game::Game()
 	//	Window::Height(),
 	//	FixPath(L"RayTracing.cso"));
 
-	// Load textures
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormal = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_normals.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_roughness.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_metal.png").c_str());
-
-	// Create materials
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState{};
-	std::shared_ptr<Material> cobblestone = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	cobblestone->AddTexture(cobblestoneAlbedo, 0);
-	cobblestone->AddTexture(cobblestoneNormal, 1);
-	cobblestone->AddTexture(cobblestoneRoughness, 2);
-	cobblestone->AddTexture(cobblestoneMetal, 3);
-	cobblestone->FinalizeMaterial();
-
-	// Load mesh(es)
-	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cube.obj").c_str());
-	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/torus.obj").c_str());
-	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
-
-	// Floor
-	std::shared_ptr<Entity> floor = std::make_shared<Entity>(cubeMesh);
-	floor->SetMaterial(cobblestone);
-	floor->GetTransform()->SetScale(50.0f, 50.0f, 50.0f);
-	floor->GetTransform()->SetPosition(0, -51, 0);
-	entities.push_back(floor);
-
-	// Spinning torus
-	std::shared_ptr<Entity> t = std::make_shared<Entity>(torusMesh);
-	t->SetMaterial(cobblestone);
-	t->GetTransform()->SetScale(2.0f, 2.0f, 2.0f);
-	t->GetTransform()->SetPosition(0, 3, 0);
-	entities.push_back(t);
-
-	for (int i = 0; i < 20; i++)
-	{
-		std::shared_ptr<Material> mat = std::make_shared<Material>(pipelineState, XMFLOAT3(
-			RandomRange(0.0f, 1.0f),
-			RandomRange(0.0f, 1.0f),
-			RandomRange(0.0f, 1.0f)));
-
-		float scale = RandomRange(0.25f, 1.0f);
-
-		std::shared_ptr<Entity> sphereEnt = std::make_shared<Entity>(sphereMesh);
-		sphereEnt->SetMaterial(mat);
-		sphereEnt->GetTransform()->SetScale(scale, scale, scale);
-		sphereEnt->GetTransform()->SetPosition(
-			RandomRange(-6, 6),
-			-1 + scale,
-			RandomRange(-6, 6));
-
-		entities.push_back(sphereEnt);
-	}
-
 	// Create a BLAS for a single mesh, then the TLAS for our “scene”
 	//RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Finalize any initialization and wait for the GPU
