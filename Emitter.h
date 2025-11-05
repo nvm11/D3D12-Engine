@@ -1,5 +1,7 @@
 #pragma once
 #include "Particle.h"
+#include "Camera.h"
+#include <memory>
 
 class Emitter
 {
@@ -21,6 +23,10 @@ public:
 			const float lifetime = 1.0f,
 			const DirectX::XMFLOAT3 emitterPos = DirectX::XMFLOAT3(),
 			const DirectX::XMFLOAT3 positionRandomRange = DirectX::XMFLOAT3());
+
+	void Update(float deltaTime);
+	void Draw(std::shared_ptr<Camera> cam);
+
 	~Emitter();
 };
 

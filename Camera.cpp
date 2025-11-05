@@ -1,5 +1,6 @@
 #include "Camera.h"
 #include <iostream>
+#include "Emitter.h"
 using namespace DirectX;
 
 Camera::Camera(XMFLOAT3 initialPos, float fov, float aspectRatio, float nearClipDist, float farClipDist, bool perspective, float orthographicWidth)

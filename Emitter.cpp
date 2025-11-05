@@ -17,6 +17,17 @@ Emitter::Emitter(const DirectX::XMFLOAT4 startColor,
 	// TODO: Assign emitter start pos
 }
 
+void Emitter::Update(float deltaTime)
+{
+	// Updatte particles
+	// Move information relating to dead/alive particles
+}
+
+void Emitter::Draw(std::shared_ptr<Camera> cam)
+{
+	// Draw particles relative to camera
+}
+
 Emitter::~Emitter()
 {
 	delete[] particles;
