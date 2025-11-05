@@ -11,7 +11,8 @@ Emitter::Emitter(const DirectX::XMFLOAT4 startColor,
 	 particlesPerSecond(particlesPerSecond),
 	 startColor(startColor),
 	 endColor(endColor),
-	 emitterPos(emitterPos)
+	 emitterPos(emitterPos),
+	 maxParticleLifetime(lifetime)
 {
 	// TODO: Initialize particles
 	// TODO: Assign emitter start pos
@@ -19,8 +20,9 @@ Emitter::Emitter(const DirectX::XMFLOAT4 startColor,
 
 void Emitter::Update(float deltaTime)
 {
-	// Updatte particles
-	// Move information relating to dead/alive particles
+	// Update particles
+	// Track lifetimes
+	// Emit Particles
 }
 
 void Emitter::Draw(std::shared_ptr<Camera> cam)
