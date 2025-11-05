@@ -178,6 +178,7 @@
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Particle.h" />
     <ClInclude Include="PathHelpers.h" />
     <ClInclude Include="RayTracing.h" />
     <ClInclude Include="Transform.h" />
