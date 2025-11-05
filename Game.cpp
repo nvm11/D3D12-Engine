@@ -35,10 +35,10 @@ Game::Game()
 		100.0f);
 
 	// Initialize raytracing
-	RayTracing::Initialize(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"));
+	//RayTracing::Initialize(
+	//	Window::Width(),
+	//	Window::Height(),
+	//	FixPath(L"RayTracing.cso"));
 
 	// Load textures
 	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
@@ -95,7 +95,7 @@ Game::Game()
 	}
 
 	// Create a BLAS for a single mesh, then the TLAS for our “scene”
-	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
+	//RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
 	Graphics::CloseAndExecuteCommandList();
@@ -417,7 +417,7 @@ void Game::OnResize()
 	}
 
 	// Resize raytracing output texture
-	RayTracing::ResizeOutputUAV(Window::Width(), Window::Height());
+	//RayTracing::ResizeOutputUAV(Window::Width(), Window::Height());
 }
 
 
@@ -446,9 +446,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
-	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
+	//RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Perform ray trace (which also copies the results to the back buffer)
-	RayTracing::Raytrace(camera, currentBackBuffer);
+	//RayTracing::Raytrace(camera, currentBackBuffer);
 
 	// Present
 	{
