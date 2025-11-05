@@ -28,6 +28,34 @@ void Emitter::UpdateParticle(float deltaTime, int particleIndex)
 			age));
 }
 
+void Emitter::CreateParticle()
+{
+	// Can we initialize?
+	if (aliveParticleCount >= maxParticles) {
+		timeSinceLastEmission = 0.0f;
+		return;
+	}
+
+	// Reset first old particle
+	particles[deadIndex] = Particle{};
+	
+	// Assign color
+	particles[deadIndex].Color = startColor;
+
+	// Assign start pos with random offset
+	particles[deadIndex].Position = DirectX::XMFLOAT3();
+	particles[deadIndex].Position.x += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.x;
+	particles[deadIndex].Position.y += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.y;
+	particles[deadIndex].Position.z += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.z;
+
+	// Wrap indices
+	deadIndex++;
+	deadIndex %= maxParticles;
+	aliveParticleCount++;
+
+	timeSinceLastEmission = 0.0f;
+}
+
 Emitter::Emitter(const DirectX::XMFLOAT4 startColor,
 				 const DirectX::XMFLOAT4 endColor, 
 				 const int maxParticles, 
@@ -60,7 +88,6 @@ void Emitter::Update(float deltaTime)
 	for (int i = 0; i < maxParticles; i++) {
 		UpdateParticle(deltaTime, i);
 	}
-	// Track lifetimes
 	
 	// Emit Particles
 }

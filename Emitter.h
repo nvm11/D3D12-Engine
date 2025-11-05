@@ -28,6 +28,7 @@ private:
 	D3D12_INDEX_BUFFER_VIEW ibView{};
 
 	void UpdateParticle(float deltaTime, int particleIndex);
+	void CreateParticle();
 
 public:
 	Emitter(const DirectX::XMFLOAT4 startColor = DirectX::XMFLOAT4(),
