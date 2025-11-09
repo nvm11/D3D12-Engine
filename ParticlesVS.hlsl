@@ -2,9 +2,26 @@
 
 cbuffer externalData : register(b0)
 {
-    matrix world;
     matrix view;
     matrix projection;
+    
+    float4 startColor;
+    float4 endColor;
+    
+    float currentTime;
+    float3 acceleration;
+    
+    int spriteSheetWidth;
+    int spriteSheetHeight;
+    float spriteSheetFrameWidth;
+    float spriteSheetFrameHeight;
+    
+    float spriteSheetSpeedScale;
+    float startSize;
+    float endSize;
+    float lifetime;
+    
+    int constrainYAxis;
 };
 
 VertexToPixel_Particle main(VertexShaderInput_Particle input) {
