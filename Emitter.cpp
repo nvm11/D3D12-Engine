@@ -1,7 +1,38 @@
 #include "Emitter.h"
+#include "Graphics.h"
 
 // Macro for random float in range
 #define RandomRange(min, max) ((float)rand() / RAND_MAX * (max - min) + min)
+
+void Emitter::InitializeGPUResources()
+{
+	// Create Structured Buffer for particles
+	UINT bufferSize = sizeof(Particle) * maxParticles;
+
+	D3D12_HEAP_PROPERTIES heapProps = {};
+	heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Width = bufferSize;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	HRESULT hr = Graphics::Device->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&particleBuffer)
+	);
+}
 
 void Emitter::UpdateParticle(int particleIndex)
 {
@@ -139,7 +170,7 @@ void Emitter::Update(float deltaTime)
 
 void Emitter::Draw(std::shared_ptr<Camera> cam)
 {
-	// Draw particles relative to camera
+	
 }
 
 Emitter::~Emitter()
