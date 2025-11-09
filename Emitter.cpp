@@ -3,59 +3,24 @@
 // Macro for random float in range
 #define RandomRange(min, max) ((float)rand() / RAND_MAX * (max - min) + min)
 
-void Emitter::UpdateParticle(float deltaTime, int particleIndex)
+void Emitter::UpdateParticle(int particleIndex)
 {
-	// Check if particle is dead
-	if(particles[particleIndex].EmitTime >= maxParticleLifetime) {
-		return;
-	}
+	// Get age
+	float age = totalEmitterTime - particles[particleIndex].EmitTime;
 
-	// Increment emit time
-	particles[particleIndex].EmitTime += deltaTime;
-	// Just died?
-	if (particles[particleIndex].EmitTime >= maxParticleLifetime) {
+	// Update and check for death
+	if (age >= lifetime)
+	{
+		// Recent death, so retire by moving alive count (and wrap)
 		aliveIndex++;
-		aliveIndex %= maxParticles; // looped data
-		aliveParticleCount--;
-		return;
+		aliveIndex %= maxParticles;
+		livingParticleCount--;
 	}
-
-	// Lerp color based on age
-	float age = particles[particleIndex].EmitTime / maxParticleLifetime;
-	DirectX::XMStoreFloat4(
-		&particles[particleIndex].Color,
-		DirectX::XMVectorLerp(
-			DirectX::XMLoadFloat4(&startColor),
-			DirectX::XMLoadFloat4(&endColor),
-			age));
 }
 
 void Emitter::CreateParticle()
 {
-	// Can we initialize?
-	if (aliveParticleCount >= maxParticles) {
-		timeSinceLastEmission = 0.0f;
-		return;
-	}
-
-	// Reset first old particle
-	particles[deadIndex] = Particle{};
 	
-	// Assign color
-	particles[deadIndex].Color = startColor;
-
-	// Assign start pos with random offset
-	particles[deadIndex].Position = DirectX::XMFLOAT3();
-	particles[deadIndex].Position.x += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.x;
-	particles[deadIndex].Position.y += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.y;
-	particles[deadIndex].Position.z += (((float)rand() / RAND_MAX) * 2 - 1) * positionRandomRange.z;
-
-	// Wrap indices
-	deadIndex++;
-	deadIndex %= maxParticles;
-	aliveParticleCount++;
-
-	timeSinceLastEmission = 0.0f;
 }
 
 
@@ -84,7 +49,7 @@ Emitter::Emitter(int maxParticles,
 	:material(material),
 	maxParticles(maxParticles),
 	particlesPerSecond(particlesPerSecond),
-	secondsPerparticle(1.0f / particlesPerSecond),
+	secondsPerParticle(1.0f / particlesPerSecond),
 	lifetime(lifetime),
 	startSize(startSize),
 	endSize(endSize),
@@ -121,12 +86,55 @@ Emitter::Emitter(int maxParticles,
 
 void Emitter::Update(float deltaTime)
 {
-	// Update particles
-	for (int i = 0; i < maxParticles; i++) {
-		UpdateParticle(deltaTime, i);
+	if (paused) {
+		return;
 	}
-	
+
+	totalEmitterTime += deltaTime;
+	timeSinceLastEmission += deltaTime;
+
+	// Data to update?
+	if (livingParticleCount <= 0) {
+		return;
+	}
+
+	// Update new particles
+	// Cyclic buffer?
+	if (aliveIndex < deadIndex) {
+		// All particles are contiguous
+		// 0 -------- FIRST ALIVE ----------- FIRST DEAD -------- MAX
+		// |    dead    |            alive       |         dead    |
+		for (int i = aliveIndex; i < deadIndex; i++) {
+			UpdateParticle(i);
+		}
+	}
+	else if (deadIndex > aliveIndex) {
+		// Alive particles wrap around
+		// 0 -------- FIRST DEAD ----------- FIRST ALIVE -------- MAX
+		// |    alive    |            dead       |         alive   |
+		// Update first chunk
+		for (int i = aliveIndex; i < maxParticles; i++) {
+			UpdateParticle(i);
+		}
+		// Update second chunk
+		for (int i = 0; i < deadIndex; i++) {
+			UpdateParticle(i);
+		}
+	}
+	else {
+		// All particles are dead/alive
+		for (int i = 0; i < maxParticles; i++) {
+			UpdateParticle(i);
+		}
+	}
+
 	// Emit Particles
+	// Time to emit?
+	while (timeSinceLastEmission > secondsPerParticle) {
+		// Emit
+
+		timeSinceLastEmission -= secondsPerParticle;
+	}
 }
 
 void Emitter::Draw(std::shared_ptr<Camera> cam)

@@ -27,7 +27,7 @@ private:
 	int maxParticles;
 	int particlesPerSecond;
 	float lifetime;
-	float secondsPerparticle;
+	float secondsPerParticle;
 	float timeSinceLastEmission;
 	float totalEmitterTime;
 
@@ -60,7 +60,7 @@ private:
 	std::shared_ptr<Material> material;
 	std::shared_ptr<Transform> transform;
 
-	void UpdateParticle(float deltaTime, int particleIndex);
+	void UpdateParticle(int particleIndex);
 	void CreateParticle();
 
 public:
