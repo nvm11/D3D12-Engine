@@ -56,30 +56,31 @@ void Emitter::CreateParticle()
 	timeSinceLastEmission = 0.0f;
 }
 
-Emitter::Emitter(const DirectX::XMFLOAT4 startColor,
-				 const DirectX::XMFLOAT4 endColor, 
-				 const int maxParticles, 
-				 const int particlesPerSecond, 
-				 const float lifetime, 
-				 const DirectX::XMFLOAT3 emitterPos, 
-				 const DirectX::XMFLOAT3 positionRandomRange)
-	:maxParticles(maxParticles),
-	 particlesPerSecond(particlesPerSecond),
-	 startColor(startColor),
-	 endColor(endColor),
-	 maxParticleLifetime(lifetime),
-	 positionRandomRange(positionRandomRange)
+
+
+Emitter::Emitter(int maxParticles, 
+	int particlesPerSecond,
+	float lifetime, 
+	float startSize, 
+	float endSize, 
+	bool constrainYAxis, 
+	DirectX::XMFLOAT4 startColor, 
+	DirectX::XMFLOAT4 endColor, 
+	DirectX::XMFLOAT3 startVelocity, 
+	DirectX::XMFLOAT3 velocityRandomRange,
+	DirectX::XMFLOAT3 emitterPosition, 
+	DirectX::XMFLOAT3 positionRandomRange, 
+	DirectX::XMFLOAT2 rotationStartMinMax, 
+	DirectX::XMFLOAT2 rotationEndMinMax, 
+	DirectX::XMFLOAT3 emitterAcceleration, 
+	std::shared_ptr<Material> material, 
+	unsigned int spriteSheetWidth, 
+	unsigned int spriteSheetHeight, 
+	float spriteSheetSpeedScale, 
+	bool paused, 
+	bool visible)
 {
-	transform = std::make_shared<Transform>();
-	transform->SetPosition(emitterPos);
 
-	timeSinceLastEmission = 0.0f;
-	aliveIndex = 0;
-	deadIndex = 0;
-	aliveParticleCount = 0;
-
-	// Initialize array of particles
-	particles = new Particle[maxParticles];
 }
 
 void Emitter::Update(float deltaTime)
