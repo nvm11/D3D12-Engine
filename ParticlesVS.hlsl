@@ -48,7 +48,7 @@ VertexToPixel_Particle main(uint id : SV_VertexID) {
     // Interpolate size
     float size = lerp(startSize, endSize, agePercent);
     
-    	// Offsets for the 4 corners of a quad - we'll only
+    // Offsets for the 4 corners of a quad - we'll only
 	// use one for each vertex, but which one depends
 	// on the cornerID above.
     float2 offsets[4];
@@ -69,8 +69,7 @@ VertexToPixel_Particle main(uint id : SV_VertexID) {
 	// Rotate the offset for this corner and apply size
     float2 rotatedOffset = mul(offsets[cornerID], rot) * size;
 
-	// Billboarding!
-	// Offset the position based on the camera's right and up vectors
+	// Offset the position based on the camera's right and up vectors (billboarding)
     pos += float3(view._11, view._12, view._13) * rotatedOffset.x; // RIGHT
     pos += (constrainYAxis ? float3(0, 1, 0) : float3(view._21, view._22, view._23)) * rotatedOffset.y; // UP
 
@@ -79,9 +78,6 @@ VertexToPixel_Particle main(uint id : SV_VertexID) {
     output.screenPosition = mul(viewProj, float4(pos, 1.0f));
 
 	// Sprite sheet animation calculations
-		// Note: Probably even better to swap shaders here (ParticleVS or AnimatedParticleVS)
-		//  but this should work for the demo, as we can think of a non-animated particle
-		//  as having a sprite sheet with exactly one frame
     float animPercent = fmod(agePercent * spriteSheetSpeedScale, 1.0f);
     uint ssIndex = (uint) floor(animPercent * (spriteSheetWidth * spriteSheetHeight));
 
