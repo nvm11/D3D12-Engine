@@ -1,5 +1,7 @@
 #include "Emitter.h"
 
+// Macro for random float in range
+#define RandomRange(min, max) ((float)rand() / RAND_MAX * (max - min) + min)
 
 void Emitter::UpdateParticle(float deltaTime, int particleIndex)
 {
@@ -79,8 +81,42 @@ Emitter::Emitter(int maxParticles,
 	float spriteSheetSpeedScale, 
 	bool paused, 
 	bool visible)
-{
+	:material(material),
+	maxParticles(maxParticles),
+	particlesPerSecond(particlesPerSecond),
+	secondsPerparticle(1.0f / particlesPerSecond),
+	lifetime(lifetime),
+	startSize(startSize),
+	endSize(endSize),
+	startColor(startColor),
+	endColor(endColor),
+	constrainYAxis(constrainYAxis),
+	positionRandomRange(positionRandomRange),
+	velocityRandomRange(velocityRandomRange),
+	startVelocity(startVelocity),
+	acceleration(emitterAcceleration),
+	rotationStartMinMax(rotationStartMinMax),
+	rotationEndMinMax(rotationEndMinMax),
+	spriteSheetWidth(max(spriteSheetWidth, 1)),
+	spriteSheetHeight(max(spriteSheetHeight, 1)),
+	spriteSheetFrameWidth(1.0f / spriteSheetWidth),
+	spriteSheetFrameHeight(1.0f / spriteSheetHeight),
+	spriteSheetSpeedScale(spriteSheetSpeedScale),
+	paused(paused),
+	visible(visible),
+	particles(0),
+	totalEmitterTime(0)
 
+{
+	transform = std::make_shared<Transform>(emitterPosition);
+
+	// Set up emission stats
+	timeSinceLastEmission = 0;
+	livingParticleCount = 0;
+	aliveIndex = 0;
+	deadIndex = 0;
+
+	// Create the array and resources for particles
 }
 
 void Emitter::Update(float deltaTime)

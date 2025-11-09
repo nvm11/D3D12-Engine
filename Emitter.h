@@ -18,18 +18,25 @@ private:
 	bool constrainYAxis;
 	bool paused;
 	bool visible;
+
+	// Movement
+	DirectX::XMFLOAT3 startVelocity;
+	DirectX::XMFLOAT3 acceleration;
 	
 	// Emission
 	int maxParticles;
 	int particlesPerSecond;
+	float lifetime;
 	float secondsPerparticle;
 	float timeSinceLastEmission;
+	float totalEmitterTime;
 
 	// Sprite Sheet Options
 	int spriteSheetWidth;
 	int spriteSheetHeight;
 	float spriteSheetFrameWidth;
 	float spriteSheetFrameHeight;
+	float spriteSheetSpeedScale;
 
 	// Particle Info
 	Particle* particles;
