@@ -9,29 +9,53 @@
 class Emitter
 {
 private:
+
+	// Visual properties
 	DirectX::XMFLOAT4 startColor;
 	DirectX::XMFLOAT4 endColor;
-	Particle* particles;
+	float startSize;
+	float endSize;
+	bool constrainYAxis;
+	bool paused;
+	bool visible;
+	
+	// Emission
 	int maxParticles;
 	int particlesPerSecond;
-	float maxParticleLifetime;
+	float secondsPerparticle;
 	float timeSinceLastEmission;
-	std::shared_ptr<Transform> transform;
-	DirectX::XMFLOAT3 positionRandomRange;
 
+	// Sprite Sheet Options
+	int spriteSheetWidth;
+	int spriteSheetHeight;
+	float spriteSheetFrameWidth;
+	float spriteSheetFrameHeight;
+
+	// Particle Info
+	Particle* particles;
 	int aliveIndex;
 	int deadIndex;
-	int aliveParticleCount;
+	int livingParticleCount;
 
+	// Randomization
+	DirectX::XMFLOAT3 positionRandomRange;
+	DirectX::XMFLOAT3 velocityRandomRange;
+	DirectX::XMFLOAT2 rotationStartMinMax;
+	DirectX::XMFLOAT2 rotationEndMinMax;
+
+	// Rendering
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW ibView{};
 
+	// Mat and Transform
+	std::shared_ptr<Material> material;
+	std::shared_ptr<Transform> transform;
+
 	void UpdateParticle(float deltaTime, int particleIndex);
 	void CreateParticle();
 
-public:
 public:
 	Emitter(
 		int maxParticles,
