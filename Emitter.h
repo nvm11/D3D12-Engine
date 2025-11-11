@@ -51,8 +51,6 @@ private:
 	DirectX::XMFLOAT2 rotationEndMinMax;
 
 	// Rendering
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW ibView{};
 	// GPU-side structured buffer
@@ -62,10 +60,13 @@ private:
 	std::shared_ptr<Material> material;
 	std::shared_ptr<Transform> transform;
 
-	void InitializeGPUResources();
+	// Pipeline setup
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 
+	void CreateParticles();
+	void InitializeGPUResources();
 	void UpdateParticle(int particleIndex);
-	void CreateParticle();
+	void EmitParticle();
 
 public:
 	Emitter(
@@ -91,6 +92,8 @@ public:
 		bool paused = false,
 		bool visible = true
 	);
+
+	void CreatRootSigAndPipelineState();
 
 	void Update(float deltaTime);
 	void Draw(std::shared_ptr<Camera> cam);

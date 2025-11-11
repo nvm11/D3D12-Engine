@@ -39,13 +39,3 @@ struct VertexToPixel
     float3 tangent : TANGENT;
     float3 worldPos : POSITION;
 };
-
-struct Particle
-{
-    float emitTime;
-    float3 startPos;
-    float3 startVelocity;
-    float startRotation;
-    float endRotation;
-    float3 padding;
-};

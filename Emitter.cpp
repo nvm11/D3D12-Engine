@@ -1,8 +1,48 @@
 #include "Emitter.h"
 #include "Graphics.h"
+#include "Vertex.h"
+#include "PathHelpers.h"
+// Needed for a helper function to load pre-compiled shader files
+#pragma comment(lib, "d3dcompiler.lib")
+#include <d3dcompiler.h>
 
 // Macro for random float in range
 #define RandomRange(min, max) ((float)rand() / RAND_MAX * (max - min) + min)
+
+void Emitter::CreateParticles()
+{
+	// Delete and release existing resources
+	if (particles) delete[] particles;
+	indexBuffer.Reset();
+	particleBuffer.Reset();
+
+	// Set up the particle array
+	particles = new Particle[maxParticles];
+	ZeroMemory(particles, sizeof(Particle) * maxParticles);
+
+	// Create an index buffer for particle drawing
+	// indices as if we had two triangles per particle
+	int numIndices = maxParticles * 6;
+	unsigned int* indices = new unsigned int[numIndices];
+	int indexCount = 0;
+	for (int i = 0; i < maxParticles * 4; i += 4)
+	{
+		indices[indexCount++] = i;
+		indices[indexCount++] = i + 1;
+		indices[indexCount++] = i + 2;
+		indices[indexCount++] = i;
+		indices[indexCount++] = i + 2;
+		indices[indexCount++] = i + 3;
+	}
+
+	// Create the index buffer
+	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), indexCount, indices);
+
+	// Set up IB view
+	ibView.Format = DXGI_FORMAT_R32_UINT;
+	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * indexCount);
+	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+}
 
 void Emitter::InitializeGPUResources()
 {
@@ -47,14 +87,39 @@ void Emitter::UpdateParticle(int particleIndex)
 		aliveIndex %= maxParticles;
 		livingParticleCount--;
 	}
+
+	particles[deadIndex].EmitTime = totalEmitterTime;
 }
 
-void Emitter::CreateParticle()
+void Emitter::EmitParticle()
 {
+	// Can we emit?
+	if (livingParticleCount >= maxParticles) {
+		return;
+	}
+
+	// Update first dead particle
+	particles[deadIndex].StartPosition = transform->GetPosition();
+	particles[deadIndex].StartPosition.x += positionRandomRange.x * RandomRange(-1.0f, 1.0f);
+	particles[deadIndex].StartPosition.y += positionRandomRange.y * RandomRange(-1.0f, 1.0f);
+	particles[deadIndex].StartPosition.z += positionRandomRange.z * RandomRange(-1.0f, 1.0f);
+
+	// Adjust particle start velocity based on random range
+	particles[deadIndex].StartVelocity = startVelocity;
+	particles[deadIndex].StartVelocity.x += velocityRandomRange.x * RandomRange(-1.0f, 1.0f);
+	particles[deadIndex].StartVelocity.y += velocityRandomRange.y * RandomRange(-1.0f, 1.0f);
+	particles[deadIndex].StartVelocity.z += velocityRandomRange.z * RandomRange(-1.0f, 1.0f);
 	
+	// Adjust start and end rotation values based on range
+	particles[deadIndex].StartRotation = RandomRange(rotationStartMinMax.x, rotationStartMinMax.y);
+	particles[deadIndex].EndRotation = RandomRange(rotationEndMinMax.x, rotationEndMinMax.y);
+
+	// Increment dead particle
+	deadIndex++;
+	deadIndex %= maxParticles; // wrap
+
+	livingParticleCount++;
 }
-
-
 
 Emitter::Emitter(int maxParticles, 
 	int particlesPerSecond,
@@ -104,7 +169,8 @@ Emitter::Emitter(int maxParticles,
 	totalEmitterTime(0)
 
 {
-	transform = std::make_shared<Transform>(emitterPosition);
+	transform = std::make_shared<Transform>();
+	transform->SetPosition(emitterPosition);
 
 	// Set up emission stats
 	timeSinceLastEmission = 0;
@@ -113,6 +179,84 @@ Emitter::Emitter(int maxParticles,
 	deadIndex = 0;
 
 	// Create the array and resources for particles
+
+	// Create related structured buffer
+	InitializeGPUResources();
+
+}
+
+void Emitter::CreatRootSigAndPipelineState()
+{
+	// Root parameters: CBV, SRV for particle buffer, SRV for texture
+	D3D12_ROOT_PARAMETER rootParams[3] = {};
+
+	// CBV for particle constants
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[0].Descriptor.ShaderRegister = 0;
+
+	// SRV for particle structured buffer
+	D3D12_DESCRIPTOR_RANGE srvRange1 = {};
+	srvRange1.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRange1.NumDescriptors = 1;
+	srvRange1.BaseShaderRegister = 0;
+	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[1].DescriptorTable.pDescriptorRanges = &srvRange1;
+
+	// SRV for particle texture
+	D3D12_DESCRIPTOR_RANGE srvRange2 = {};
+	srvRange2.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRange2.NumDescriptors = 1;
+	srvRange2.BaseShaderRegister = 1;
+	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange2;
+
+	// Static sampler for texture
+	D3D12_STATIC_SAMPLER_DESC sampler = {};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ShaderRegister = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	// Create root signature
+	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
+	rootSigDesc.NumParameters = 3;
+	rootSigDesc.pParameters = rootParams;
+	rootSigDesc.NumStaticSamplers = 1;
+	rootSigDesc.pStaticSamplers = &sampler;
+
+	// Serialize and create...
+	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+
+
+	// Pipeline State
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = rootSignature.Get();
+	psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
+	psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	psoDesc.SampleDesc.Count = 1;
+
+	// Enable alpha blending for particles
+	psoDesc.BlendState.RenderTarget[0].BlendEnable = true;
+	psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	// Depth settings - often disable depth writing for particles
+	psoDesc.DepthStencilState.DepthEnable = true;
+	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // Don't write depth
+	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 }
 
 void Emitter::Update(float deltaTime)
@@ -163,14 +307,34 @@ void Emitter::Update(float deltaTime)
 	// Time to emit?
 	while (timeSinceLastEmission > secondsPerParticle) {
 		// Emit
-
+		EmitParticle();
 		timeSinceLastEmission -= secondsPerParticle;
 	}
+
+	particles[deadIndex].EmitTime = totalEmitterTime;
 }
 
 void Emitter::Draw(std::shared_ptr<Camera> cam)
 {
-	
+	// Need to emit?
+	if (!visible && livingParticleCount <= 0) {
+		return;
+	}
+
+	// Update particle buffer data
+	D3D12_RANGE readRange = { 0, 0 }; // We don't intend to read this
+	void* mappedData;
+	particleBuffer->Map(0, &readRange, &mappedData);
+	memcpy(mappedData, particles, sizeof(Particle) * maxParticles);
+	particleBuffer->Unmap(0, nullptr);
+
+	// Set up rendering pipeline
+	// - Set root signature
+	// - Set pipeline state
+	// - Set Shaders
+	// - Set structured buffer as shader resource
+	// - Set constant buffer data (view/proj matrices, colors, etc.)
+	// - Draw instanced
 }
 
 Emitter::~Emitter()
