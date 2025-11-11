@@ -7,6 +7,7 @@
 #include <vector>
 #include "PathHelpers.h"
 #include "Light.h"
+#include "Emitter.h"
 
 class Game
 {
@@ -51,5 +52,11 @@ private:
 	unsigned int lightCount = 0;
 	std::vector<Light> lights;
 	std::shared_ptr<Mesh> sphere;
+	// Particle system
+	std::shared_ptr<Emitter> emitter;
+	std::shared_ptr<Material> particleMat;
+
+	// Helper to test particle systems
+	void InitializeParticleSystem();
 };
 

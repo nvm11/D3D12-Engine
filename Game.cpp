@@ -34,6 +34,9 @@ Game::Game()
 		0.01f,
 		100.0f);
 
+	// Create Emitter
+	emitter
+
 	// Initialize raytracing
 	//RayTracing::Initialize(
 	//	Window::Width(),
@@ -44,6 +47,7 @@ Game::Game()
 	//RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
+
 	Graphics::CloseAndExecuteCommandList();
 	Graphics::WaitForGPU();
 	Graphics::ResetAllocatorAndCommandList(0);
@@ -348,6 +352,45 @@ void Game::CreateRootSigAndPipelineState()
 		scissorRect.right = Window::Width();
 		scissorRect.bottom = Window::Height();
 	}
+}
+
+void Game::InitializeParticleSystem()
+{
+	// Load a texture for particles (create a simple particle texture first)
+	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/particle.png").c_str());
+
+	// If you don't have a particle texture, you can use an existing one temporarily
+	// D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
+
+	// Create particle material
+	particleMat = std::make_shared<Material>(pipelineState);
+	particleMat->AddTexture(particleTexture, 0);
+	particleMat->FinalizeMaterial();
+
+	// Create particle emitter with various parameters
+	emitter = std::make_shared<Emitter>(
+		1000,                          // maxParticles
+		50,                            // particlesPerSecond  
+		3.0f,                          // lifetime
+		0.1f,                          // startSize
+		0.05f,                         // endSize
+		false,                         // constrainYAxis
+		XMFLOAT4(1.0f, 0.5f, 0.1f, 1.0f), // startColor (orange)
+		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), // endColor (red, fading out)
+		XMFLOAT3(0.0f, 2.0f, 0.0f),    // startVelocity
+		XMFLOAT3(1.0f, 0.5f, 1.0f),    // velocityRandomRange
+		XMFLOAT3(0.0f, -2.0f, 0.0f),   // emitterPosition
+		XMFLOAT3(0.5f, 0.0f, 0.5f),    // positionRandomRange
+		XMFLOAT2(0.0f, XM_2PI),        // rotationStartMinMax
+		XMFLOAT2(0.0f, XM_2PI),        // rotationEndMinMax
+		XMFLOAT3(0.0f, -1.0f, 0.0f),   // acceleration (gravity)
+		particleMat,                   // material
+		1,                             // spriteSheetWidth
+		1,                             // spriteSheetHeight
+		1.0f,                          // spriteSheetSpeedScale
+		false,                         // paused
+		true                           // visible
+	);
 }
 
 
