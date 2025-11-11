@@ -470,8 +470,6 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	Graphics::CommandList->SetPipelineState(pipelineState.Get());
 	Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
-	// Set descriptor heap - USE THE GLOBAL ONE (already set in main Draw)
-	// Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
 	// Set vertex buffer
 	Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -35,7 +35,7 @@ Game::Game()
 		100.0f);
 
 	// Create Emitter
-	emitter
+	InitializeParticleSystem();
 
 	// Initialize raytracing
 	//RayTracing::Initialize(
@@ -421,6 +421,8 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
+	emitter->Update(deltaTime);
+
 	for (auto i = 1; i < entities.size(); i++) {
 		entities[i]->GetTransform()->Rotate(0, deltaTime, deltaTime);
 	}
@@ -435,24 +437,72 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
-	//RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
-	// Perform ray trace (which also copies the results to the back buffer)
-	//RayTracing::Raytrace(camera, currentBackBuffer);
-
-	// Present
+	// Clear the render target
 	{
-		// Must occur BEFORE present
-		Graphics::CloseAndExecuteCommandList();
+		// Transition back buffer to render target
+		D3D12_RESOURCE_BARRIER rb = {};
+		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		rb.Transition.pResource = currentBackBuffer.Get();
+		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &rb);
 
-		// Present the current back buffer and move to the next one
-		bool vsync = Graphics::VsyncState();
-		Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+		// Clear RTV and DSV
+		FLOAT clearColor[] = { 0.1f, 0.1f, 0.1f, 1.0f }; // Dark gray
+		// Clear the RTV
+		Graphics::CommandList->ClearRenderTargetView(
+			Graphics::RTVHandles[Graphics::SwapChainIndex()],
+			clearColor,
+			0, 0); // No scissor rectangles
 
-		Graphics::AdvanceSwapChainIndex();
+		// Clear the depth buffer, too
+		Graphics::CommandList->ClearDepthStencilView(
+			Graphics::DSVHandle,
+			D3D12_CLEAR_FLAG_DEPTH,
+			1.0f,	// Max depth = 1.0f
+			0,		// Not clearing stencil, but need a value
+			0, 0);	// No scissor rects
 
-		// Reset the command list & allocator for the upcoming frame
-		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		// Set constant buffer descriptor heap
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
+		// Set up other commands for rendering
+		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+		emitter->Draw(camera);
+
+		// Transition back to present
+		{
+			D3D12_RESOURCE_BARRIER rb = {};
+			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			rb.Transition.pResource = currentBackBuffer.Get();
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			Graphics::CommandList->ResourceBarrier(1, &rb);
+		}
+
+		// Present
+		{
+			// Must occur BEFORE present
+			Graphics::CloseAndExecuteCommandList();
+
+			// Present the current back buffer and move to the next one
+			bool vsync = Graphics::VsyncState();
+			Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+
+			Graphics::AdvanceSwapChainIndex();
+
+			// Reset the command list & allocator for the upcoming frame
+			Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		}
 	}
 }
 
