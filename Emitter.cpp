@@ -42,11 +42,14 @@ void Emitter::CreateParticles()
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * indexCount);
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+
+	// Clean up memory (already in gpu)
+	delete[] indices;
 }
 
 void Emitter::InitializeGPUResources()
 {
-	// Create Structured Buffer for particles
+	// Create Structured Buffer for particles (your existing code)
 	UINT bufferSize = sizeof(Particle) * maxParticles;
 
 	D3D12_HEAP_PROPERTIES heapProps = {};
@@ -72,6 +75,78 @@ void Emitter::InitializeGPUResources()
 		nullptr,
 		IID_PPV_ARGS(&particleBuffer)
 	);
+
+	// Create Constant Buffer
+	UINT constantBufferSize = sizeof(ParticleExternalData);
+	constantBufferSize = (constantBufferSize + 255) & ~255; // Align to 256 bytes
+
+	D3D12_HEAP_PROPERTIES cbHeapProps = {};
+	cbHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+	D3D12_RESOURCE_DESC cbDesc = {};
+	cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	cbDesc.Width = constantBufferSize;
+	cbDesc.Height = 1;
+	cbDesc.DepthOrArraySize = 1;
+	cbDesc.MipLevels = 1;
+	cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	Graphics::Device->CreateCommittedResource(
+		&cbHeapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&cbDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&constantBuffer)
+	);
+
+	// Map constant buffer
+	constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&constantBufferData));
+
+	// Create Index Buffer
+	CreateParticles(); // This creates the index buffer
+}
+
+void Emitter::CreateConstantBuffer(std::shared_ptr<Camera> cam)
+{
+	// Set constant buffer data
+	ParticleExternalData particleData = {};
+	particleData.view = cam->GetView();
+	particleData.projection = cam->GetProjection();
+	particleData.startColor = startColor;
+	particleData.endColor = endColor;
+	particleData.currentTime = totalEmitterTime;
+	particleData.acceleration = acceleration;
+	particleData.spriteSheetWidth = spriteSheetWidth;
+	particleData.spriteSheetHeight = spriteSheetHeight;
+	particleData.spriteSheetFrameWidth = spriteSheetFrameWidth;
+	particleData.spriteSheetFrameHeight = spriteSheetFrameHeight;
+	particleData.spriteSheetSpeedScale = spriteSheetSpeedScale;
+	particleData.startSize = startSize;
+	particleData.endSize = endSize;
+	particleData.lifetime = lifetime;
+	particleData.constrainYAxis = constrainYAxis ? 1 : 0;
+	particleData.colorTint = material->GetColorTint();
+
+	// Send data to the buffer
+	memcpy(constantBufferData, &particleData, sizeof(ParticleExternalData));
+}
+
+void Emitter::CreateDescriptors()
+{
+	// Create SRV for particle structured buffer
+	D3D12_SHADER_RESOURCE_VIEW_DESC particleSRVDesc = {};
+	particleSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	particleSRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	particleSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	particleSRVDesc.Buffer.NumElements = maxParticles;
+	particleSRVDesc.Buffer.StructureByteStride = sizeof(Particle);
+	particleSRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	// Use Graphics system to create the SRV in the global heap
+	D3D12_CPU_DESCRIPTOR_HANDLE particleCPUHandle;
+	Graphics::ReserveDescriptorHeapSlot(&particleCPUHandle, &particleBufferSRVHandle);
+	Graphics::Device->CreateShaderResourceView(particleBuffer.Get(), &particleSRVDesc, particleCPUHandle);
 }
 
 void Emitter::UpdateParticle(int particleIndex)
@@ -87,8 +162,6 @@ void Emitter::UpdateParticle(int particleIndex)
 		aliveIndex %= maxParticles;
 		livingParticleCount--;
 	}
-
-	particles[deadIndex].EmitTime = totalEmitterTime;
 }
 
 void Emitter::EmitParticle()
@@ -97,6 +170,8 @@ void Emitter::EmitParticle()
 	if (livingParticleCount >= maxParticles) {
 		return;
 	}
+
+	particles[deadIndex].EmitTime = totalEmitterTime;
 
 	// Update first dead particle
 	particles[deadIndex].StartPosition = transform->GetPosition();
@@ -178,15 +253,51 @@ Emitter::Emitter(int maxParticles,
 	aliveIndex = 0;
 	deadIndex = 0;
 
-	// Create the array and resources for particles
-
+	// Create the pipeline
+	CreateRootSigAndPipelineState();
 	// Create related structured buffer
 	InitializeGPUResources();
-
+	// Create descriptors
+	CreateDescriptors();
 }
 
-void Emitter::CreatRootSigAndPipelineState()
+void Emitter::CreateRootSigAndPipelineState()
 {
+	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+
+	// Load both shaders
+	D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
+	D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+
+	// No need for input layout since no use for vertex shader
+	//// Input Layout
+	//const unsigned int inputElementCount = 3;
+	//D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
+	//{
+	//	// Create an input layout that describes the vertex format
+	//	// used by the vertex shader we're using
+	//	//  - This is used by the pipeline to know how to interpret the raw data
+	//	//     sitting inside a vertex buffer
+
+	//	// Set up the first element - a position, which is 3 float values
+	//	inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // How far into the vertex is this?  Assume it's after the previous element
+	//	inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// Most formats are described as color channels, really it just means "Three 32-bit floats"
+	//	inputElements[0].SemanticName = "POSITION";					// This is "POSITTION" - needs to match the semantics in our vertex shader input!
+	//	inputElements[0].SemanticIndex = 0;							// This is the 0th position (there could be more)
+
+	//	// Set up the second element - a UV, which is 2 more float values
+	//	inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
+	//	inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;			// 2x 32-bit floats
+	//	inputElements[1].SemanticName = "TEXCOORD";					// Match our vertex shader input!
+	//	inputElements[1].SemanticIndex = 0;							// This is the 0th uv (there could be more)
+
+	//	// Set up the fourth element - a tangent, which is 2 more float values
+	//	inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
+	//	inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
+	//	inputElements[3].SemanticName = "TANGENT";					// Match our vertex shader input!
+	//	inputElements[3].SemanticIndex = 0;							// This is the 0th tangent (there could be more)
+	//}
 	// Root parameters: CBV, SRV for particle buffer, SRV for texture
 	D3D12_ROOT_PARAMETER rootParams[3] = {};
 
@@ -230,14 +341,34 @@ void Emitter::CreatRootSigAndPipelineState()
 	rootSigDesc.NumStaticSamplers = 1;
 	rootSigDesc.pStaticSamplers = &sampler;
 
-	// Serialize and create...
-	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
-	D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+	ID3DBlob* serializedRootSig = 0;
+	ID3DBlob* errors = 0;
+
+	D3D12SerializeRootSignature(
+		&rootSigDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&serializedRootSig,
+		&errors);
+
+	// Check for errors during serialization
+	if (errors != 0)
+	{
+		OutputDebugString((wchar_t*)errors->GetBufferPointer());
+	}
+
+	// Actually create the root sig
+	Graphics::Device->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(rootSignature.GetAddressOf()));
 
 
 	// Pipeline State
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.pRootSignature = rootSignature.Get();
+	psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
+	psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
 	psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
 	psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -245,6 +376,9 @@ void Emitter::CreatRootSigAndPipelineState()
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	psoDesc.SampleDesc.Count = 1;
+
+	psoDesc.InputLayout.NumElements = 0;
+	psoDesc.InputLayout.pInputElementDescs = nullptr; 
 
 	// Enable alpha blending for particles
 	psoDesc.BlendState.RenderTarget[0].BlendEnable = true;
@@ -257,6 +391,9 @@ void Emitter::CreatRootSigAndPipelineState()
 	psoDesc.DepthStencilState.DepthEnable = true;
 	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // Don't write depth
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+	// Create the pipe state object
+	Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
 }
 
 void Emitter::Update(float deltaTime)
@@ -310,8 +447,6 @@ void Emitter::Update(float deltaTime)
 		EmitParticle();
 		timeSinceLastEmission -= secondsPerParticle;
 	}
-
-	particles[deadIndex].EmitTime = totalEmitterTime;
 }
 
 void Emitter::Draw(std::shared_ptr<Camera> cam)
@@ -321,20 +456,38 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 		return;
 	}
 
+	// Update constant buffer data
+	CreateConstantBuffer(cam);
+
 	// Update particle buffer data
-	D3D12_RANGE readRange = { 0, 0 }; // We don't intend to read this
+	D3D12_RANGE readRange = { 0, 0 };
 	void* mappedData;
 	particleBuffer->Map(0, &readRange, &mappedData);
 	memcpy(mappedData, particles, sizeof(Particle) * maxParticles);
 	particleBuffer->Unmap(0, nullptr);
 
-	// Set up rendering pipeline
-	// - Set root signature
-	// - Set pipeline state
-	// - Set Shaders
-	// - Set structured buffer as shader resource
-	// - Set constant buffer data (view/proj matrices, colors, etc.)
-	// - Draw instanced
+	// Set pipeline state
+	Graphics::CommandList->SetPipelineState(pipelineState.Get());
+	Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
+
+	// Set descriptor heap - USE THE GLOBAL ONE (already set in main Draw)
+	// Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+
+	// Set vertex buffer
+	Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	Graphics::CommandList->IASetIndexBuffer(&ibView);
+
+	// Set CBV (root parameter 0)
+	Graphics::CommandList->SetGraphicsRootConstantBufferView(0, constantBuffer->GetGPUVirtualAddress());
+
+	// Set SRV for particle buffer (root parameter 1)
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(1, particleBufferSRVHandle);
+
+	// Set SRV for texture from material (root parameter 2)
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(2, material->GetFinalGPUHandleForSRVs());
+
+	// Draw
+	Graphics::CommandList->DrawIndexedInstanced(livingParticleCount * 6, 1, 0, 0, 0);
 }
 
 Emitter::~Emitter()

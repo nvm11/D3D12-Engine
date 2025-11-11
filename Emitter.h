@@ -2,6 +2,7 @@
 #include "Particle.h"
 #include "Camera.h"
 #include "Material.h"
+#include "BufferStructs.h"
 #include <memory>
 #include <d3d12.h>
 #include <wrl/client.h>
@@ -53,18 +54,34 @@ private:
 	// Rendering
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW ibView{};
-	// GPU-side structured buffer
-	Microsoft::WRL::ComPtr<ID3D12Resource> particleBuffer;
 
 	// Mat and Transform
 	std::shared_ptr<Material> material;
 	std::shared_ptr<Transform> transform;
 
+	// GPU-side structured buffer
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleBuffer;
+
 	// Pipeline setup
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+	
+	// Constant buffer
+    Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer;
+    
+    // Texture
+    Microsoft::WRL::ComPtr<ID3D12Resource> particleTexture;
+
+	D3D12_GPU_DESCRIPTOR_HANDLE particleBufferSRVHandle;
+
+	// Particle data
+	ParticleExternalData* constantBufferData = {};
+	
 
 	void CreateParticles();
 	void InitializeGPUResources();
+	void CreateConstantBuffer(std::shared_ptr<Camera> cam);
+	void CreateDescriptors();
 	void UpdateParticle(int particleIndex);
 	void EmitParticle();
 
@@ -93,7 +110,7 @@ public:
 		bool visible = true
 	);
 
-	void CreatRootSigAndPipelineState();
+	void CreateRootSigAndPipelineState();
 
 	void Update(float deltaTime);
 	void Draw(std::shared_ptr<Camera> cam);
