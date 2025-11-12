@@ -450,7 +450,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(1, &rb);
 
 		// Clear RTV and DSV
-		FLOAT clearColor[] = { 0.1f, 0.1f, 0.1f, 1.0f }; // Dark gray
+		FLOAT clearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Dark gray
 		// Clear the RTV
 		Graphics::CommandList->ClearRenderTargetView(
 			Graphics::RTVHandles[Graphics::SwapChainIndex()],
