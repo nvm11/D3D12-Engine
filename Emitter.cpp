@@ -13,8 +13,8 @@ void Emitter::CreateParticles()
 {
 	// Delete and release existing resources
 	if (particles) delete[] particles;
-	indexBuffer.Reset();
-	particleBuffer.Reset();
+	if (indexBuffer)indexBuffer.Reset();
+	/*particleBuffer.Reset();*/
 
 	// Set up the particle array
 	particles = new Particle[maxParticles];
@@ -333,24 +333,45 @@ void Emitter::CreateRootSigAndPipelineState()
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	psoDesc.SampleDesc.Count = 1;
+	psoDesc.SampleDesc.Quality = 0;
+	psoDesc.SampleMask = UINT_MAX; // Enable all samples
 
 	psoDesc.InputLayout.NumElements = 0;
-	psoDesc.InputLayout.pInputElementDescs = nullptr; 
+	psoDesc.InputLayout.pInputElementDescs = nullptr;
 
 	// Enable alpha blending for particles
 	psoDesc.BlendState.RenderTarget[0].BlendEnable = true;
 	psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	psoDesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	psoDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	psoDesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	// Rasterizer state
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	psoDesc.RasterizerState.FrontCounterClockwise = false;
+	psoDesc.RasterizerState.DepthBias = 0;
+	psoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+	psoDesc.RasterizerState.SlopeScaledDepthBias = 0.0f;
+	psoDesc.RasterizerState.DepthClipEnable = true;
+	psoDesc.RasterizerState.MultisampleEnable = false;
+	psoDesc.RasterizerState.AntialiasedLineEnable = false;
+	psoDesc.RasterizerState.ForcedSampleCount = 0;
 
 	// Depth settings - often disable depth writing for particles
 	psoDesc.DepthStencilState.DepthEnable = true;
 	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // Don't write depth
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	psoDesc.DepthStencilState.StencilEnable = false;
+	psoDesc.DepthStencilState.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	psoDesc.DepthStencilState.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
 
 	// Create the pipe state object
 	Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+	material->SetPipelineState(pipelineState);
 }
 
 void Emitter::Update(float deltaTime)
@@ -427,21 +448,29 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	Graphics::CommandList->SetPipelineState(pipelineState.Get());
 	Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
-
-	// Set vertex buffer
+	// Set topology and index buffer
 	Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Graphics::CommandList->IASetIndexBuffer(&ibView);
 
-	// Set CBV (root parameter 0)
-	D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle((void*)(&p), sizeof(ParticleExternalData));
-	Graphics::CommandList->SetGraphicsRootConstantBufferView(0, constantBuffer->GetGPUVirtualAddress());
+	// Create separate constant buffers
+	ParticleExternalData vertexData = CreateConstantBuffer(cam);
+	DirectX::XMFLOAT3 pixelData = { material->GetColorTint() }; // Some pixel-specific struct
 
-	// Set SRV for particle buffer (root parameter 1)
-	Graphics::CommandList->SetGraphicsRootDescriptorTable(1, particleBufferSRVHandle);
+	D3D12_GPU_DESCRIPTOR_HANDLE vertexCBVHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+		(void*)(&vertexData), sizeof(ParticleExternalData));
 
-	// Set SRV for texture from material (root parameter 2)
-	Graphics::CommandList->SetGraphicsRootDescriptorTable(2, material->GetFinalGPUHandleForSRVs());
+	D3D12_GPU_DESCRIPTOR_HANDLE pixelCBVHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+		(void*)(&pixelData), sizeof(DirectX::XMFLOAT3));
 
+	// Set them separately
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(0, vertexCBVHandle);
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(1, pixelCBVHandle);
+
+	// Parameter 2: SRV for particle buffer (t0)
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(2, particleBufferSRVHandle);
+
+	// Parameter 3: SRV for texture (t1)
+	Graphics::CommandList->SetGraphicsRootDescriptorTable(3, material->GetFinalGPUHandleForSRVs());
 	// Draw
 	Graphics::CommandList->DrawIndexedInstanced(livingParticleCount * 6, 1, 0, 0, 0);
 }
