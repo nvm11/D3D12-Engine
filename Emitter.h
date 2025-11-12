@@ -75,12 +75,12 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE particleBufferSRVHandle;
 
 	// Particle data
-	ParticleExternalData* constantBufferData = {};
+	//ParticleExternalData constantBufferData;
 	
 
 	void CreateParticles();
 	void InitializeGPUResources();
-	void CreateConstantBuffer(std::shared_ptr<Camera> cam);
+	ParticleExternalData CreateConstantBuffer(std::shared_ptr<Camera> cam);
 	void CreateDescriptors();
 	void UpdateParticle(int particleIndex);
 	void EmitParticle();

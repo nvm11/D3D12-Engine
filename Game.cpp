@@ -357,7 +357,7 @@ void Game::CreateRootSigAndPipelineState()
 void Game::InitializeParticleSystem()
 {
 	// Load a texture for particles (create a simple particle texture first)
-	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/particle.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
 
 	// If you don't have a particle texture, you can use an existing one temporarily
 	// D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());

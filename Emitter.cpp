@@ -49,65 +49,19 @@ void Emitter::CreateParticles()
 
 void Emitter::InitializeGPUResources()
 {
-	// Create Structured Buffer for particles (your existing code)
 	UINT bufferSize = sizeof(Particle) * maxParticles;
 
-	D3D12_HEAP_PROPERTIES heapProps = {};
-	heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-
-	D3D12_RESOURCE_DESC resourceDesc = {};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = bufferSize;
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	HRESULT hr = Graphics::Device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&particleBuffer)
+	particleBuffer = Graphics::CreateBuffer(
+		bufferSize,
+		D3D12_HEAP_TYPE_UPLOAD,           // heapType
+		D3D12_RESOURCE_STATE_GENERIC_READ // state
 	);
-
-	// Create Constant Buffer
-	UINT constantBufferSize = sizeof(ParticleExternalData);
-	constantBufferSize = (constantBufferSize + 255) & ~255; // Align to 256 bytes
-
-	D3D12_HEAP_PROPERTIES cbHeapProps = {};
-	cbHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-	D3D12_RESOURCE_DESC cbDesc = {};
-	cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	cbDesc.Width = constantBufferSize;
-	cbDesc.Height = 1;
-	cbDesc.DepthOrArraySize = 1;
-	cbDesc.MipLevels = 1;
-	cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	Graphics::Device->CreateCommittedResource(
-		&cbHeapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&cbDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&constantBuffer)
-	);
-
-	// Map constant buffer
-	constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&constantBufferData));
 
 	// Create Index Buffer
 	CreateParticles(); // This creates the index buffer
 }
 
-void Emitter::CreateConstantBuffer(std::shared_ptr<Camera> cam)
+ParticleExternalData Emitter::CreateConstantBuffer(std::shared_ptr<Camera> cam)
 {
 	// Set constant buffer data
 	ParticleExternalData particleData = {};
@@ -128,8 +82,9 @@ void Emitter::CreateConstantBuffer(std::shared_ptr<Camera> cam)
 	particleData.constrainYAxis = constrainYAxis ? 1 : 0;
 	particleData.colorTint = material->GetColorTint();
 
+	return particleData;
 	// Send data to the buffer
-	memcpy(constantBufferData, &particleData, sizeof(ParticleExternalData));
+	//memcpy(&constantBufferData, &particleData, sizeof(ParticleExternalData));
 }
 
 void Emitter::CreateDescriptors()
@@ -211,7 +166,7 @@ Emitter::Emitter(int maxParticles,
 	DirectX::XMFLOAT2 rotationStartMinMax, 
 	DirectX::XMFLOAT2 rotationEndMinMax, 
 	DirectX::XMFLOAT3 emitterAcceleration, 
-	std::shared_ptr<Material> material, 
+	std::shared_ptr<Material> material,
 	unsigned int spriteSheetWidth, 
 	unsigned int spriteSheetHeight, 
 	float spriteSheetSpeedScale, 
@@ -242,7 +197,6 @@ Emitter::Emitter(int maxParticles,
 	visible(visible),
 	particles(0),
 	totalEmitterTime(0)
-
 {
 	transform = std::make_shared<Transform>();
 	transform->SetPosition(emitterPosition);
@@ -253,10 +207,10 @@ Emitter::Emitter(int maxParticles,
 	aliveIndex = 0;
 	deadIndex = 0;
 
-	// Create the pipeline
-	CreateRootSigAndPipelineState();
 	// Create related structured buffer
 	InitializeGPUResources();
+	// Create the pipeline
+	CreateRootSigAndPipelineState();
 	// Create descriptors
 	CreateDescriptors();
 }
@@ -267,76 +221,79 @@ void Emitter::CreateRootSigAndPipelineState()
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 
 	// Load both shaders
-	D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
-	D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+	D3DReadFileToBlob(FixPath(L"ParticlesVS.cso").c_str(), vertexShaderByteCode.GetAddressOf());
+	D3DReadFileToBlob(FixPath(L"ParticlesPS.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 
-	// No need for input layout since no use for vertex shader
-	//// Input Layout
-	//const unsigned int inputElementCount = 3;
-	//D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
-	//{
-	//	// Create an input layout that describes the vertex format
-	//	// used by the vertex shader we're using
-	//	//  - This is used by the pipeline to know how to interpret the raw data
-	//	//     sitting inside a vertex buffer
+	// Root parameters: CBV (vert and pixel), SRV for particle buffer, SRV for texture
+	D3D12_ROOT_PARAMETER rootParams[4] = {};
 
-	//	// Set up the first element - a position, which is 3 float values
-	//	inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // How far into the vertex is this?  Assume it's after the previous element
-	//	inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// Most formats are described as color channels, really it just means "Three 32-bit floats"
-	//	inputElements[0].SemanticName = "POSITION";					// This is "POSITTION" - needs to match the semantics in our vertex shader input!
-	//	inputElements[0].SemanticIndex = 0;							// This is the 0th position (there could be more)
+	// CBV for vertex shader (register b0)
+	D3D12_DESCRIPTOR_RANGE cbvVertex = {};
+	cbvVertex.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	cbvVertex.NumDescriptors = 1;
+	cbvVertex.BaseShaderRegister = 0;
+	cbvVertex.RegisterSpace = 0;
+	cbvVertex.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//	// Set up the second element - a UV, which is 2 more float values
-	//	inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-	//	inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;			// 2x 32-bit floats
-	//	inputElements[1].SemanticName = "TEXCOORD";					// Match our vertex shader input!
-	//	inputElements[1].SemanticIndex = 0;							// This is the 0th uv (there could be more)
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[0].DescriptorTable.pDescriptorRanges = &cbvVertex;
 
-	//	// Set up the fourth element - a tangent, which is 2 more float values
-	//	inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-	//	inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
-	//	inputElements[3].SemanticName = "TANGENT";					// Match our vertex shader input!
-	//	inputElements[3].SemanticIndex = 0;							// This is the 0th tangent (there could be more)
-	//}
-	// Root parameters: CBV, SRV for particle buffer, SRV for texture
-	D3D12_ROOT_PARAMETER rootParams[3] = {};
+	// CBV for pixel shader (register b1)
+	D3D12_DESCRIPTOR_RANGE cbvPixel = {};
+	cbvPixel.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	cbvPixel.NumDescriptors = 1;
+	cbvPixel.BaseShaderRegister = 0;
+	cbvPixel.RegisterSpace = 0;
+	cbvPixel.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// CBV for particle constants
-	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParams[0].Descriptor.ShaderRegister = 0;
+	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[1].DescriptorTable.pDescriptorRanges = &cbvPixel;
 
-	// SRV for particle structured buffer
+	// SRV for particle structured buffer (register t0)
 	D3D12_DESCRIPTOR_RANGE srvRange1 = {};
 	srvRange1.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	srvRange1.NumDescriptors = 1;
 	srvRange1.BaseShaderRegister = 0;
-	rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-	rootParams[1].DescriptorTable.pDescriptorRanges = &srvRange1;
+	srvRange1.RegisterSpace = 0;
+	srvRange1.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// SRV for particle texture
+	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange1;
+
+	// SRV for particle texture (register t1)
 	D3D12_DESCRIPTOR_RANGE srvRange2 = {};
 	srvRange2.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	srvRange2.NumDescriptors = 1;
-	srvRange2.BaseShaderRegister = 1;
-	rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-	rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange2;
+	srvRange2.BaseShaderRegister = 0;
+	srvRange2.RegisterSpace = 0;
+	srvRange2.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// Static sampler for texture
+	rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParams[3].DescriptorTable.NumDescriptorRanges = 1;
+	rootParams[3].DescriptorTable.pDescriptorRanges = &srvRange2;
+
+	// Static sampler for texture (register s0)
 	D3D12_STATIC_SAMPLER_DESC sampler = {};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.MaxAnisotropy = 0;
 	sampler.ShaderRegister = 0;
+	sampler.RegisterSpace = 0;
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 	// Create root signature
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
-	rootSigDesc.NumParameters = 3;
+	rootSigDesc.NumParameters = 4;
 	rootSigDesc.pParameters = rootParams;
 	rootSigDesc.NumStaticSamplers = 1;
 	rootSigDesc.pStaticSamplers = &sampler;
@@ -411,7 +368,7 @@ void Emitter::Update(float deltaTime)
 	}
 
 	// Update new particles
-	// Cyclic buffer?
+	// Cyclic buffer
 	if (aliveIndex < deadIndex) {
 		// All particles are contiguous
 		// 0 -------- FIRST ALIVE ----------- FIRST DEAD -------- MAX
@@ -457,7 +414,7 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	}
 
 	// Update constant buffer data
-	CreateConstantBuffer(cam);
+	ParticleExternalData p = CreateConstantBuffer(cam);
 
 	// Update particle buffer data
 	D3D12_RANGE readRange = { 0, 0 };
@@ -476,6 +433,7 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	Graphics::CommandList->IASetIndexBuffer(&ibView);
 
 	// Set CBV (root parameter 0)
+	D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle((void*)(&p), sizeof(ParticleExternalData));
 	Graphics::CommandList->SetGraphicsRootConstantBufferView(0, constantBuffer->GetGPUVirtualAddress());
 
 	// Set SRV for particle buffer (root parameter 1)
