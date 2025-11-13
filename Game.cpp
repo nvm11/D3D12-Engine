@@ -357,10 +357,7 @@ void Game::CreateRootSigAndPipelineState()
 void Game::InitializeParticleSystem()
 {
 	// Load a texture for particles (create a simple particle texture first)
-	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
-
-	// If you don't have a particle texture, you can use an existing one temporarily
-	// D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Textures/cobblestone_albedo.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Particles/explosion_spritesheet.png").c_str());
 
 	// Create particle material
 	particleMat = std::make_shared<Material>(pipelineState);
@@ -368,29 +365,29 @@ void Game::InitializeParticleSystem()
 	particleMat->FinalizeMaterial();
 
 	// Create particle emitter with various parameters
-	emitter = std::make_shared<Emitter>(
+	emitters.push_back(std::make_shared<Emitter>(
 		1000,                          // maxParticles
-		50,                            // particlesPerSecond  
-		3.0f,                          // lifetime
-		0.1f,                          // startSize
-		0.05f,                         // endSize
+		100,                            // particlesPerSecond  
+		4.0f,                          // lifetime
+		1.0f,                          // startSize
+		1.0f,                         // endSize
 		false,                         // constrainYAxis
-		XMFLOAT4(1.0f, 0.5f, 0.1f, 1.0f), // startColor (orange)
-		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), // endColor (red, fading out)
-		XMFLOAT3(0.0f, 2.0f, 0.0f),    // startVelocity
+		XMFLOAT4(1.0f, 1.0f, 0.1f, 1.0f), // startColor (orange)
+		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f), // endColor (red, fading out)
+		XMFLOAT3(0.0f, 5.0f, 0.0f),    // startVelocity
 		XMFLOAT3(1.0f, 0.5f, 1.0f),    // velocityRandomRange
 		XMFLOAT3(0.0f, 0.0f, 3.0f),   // emitterPosition
-		XMFLOAT3(0.5f, 0.0f, 0.5f),    // positionRandomRange
+		XMFLOAT3(0.25f, 0.0f, 0.25f),    // positionRandomRange
 		XMFLOAT2(0.0f, XM_2PI),        // rotationStartMinMax
 		XMFLOAT2(0.0f, XM_2PI),        // rotationEndMinMax
-		XMFLOAT3(0.0f, -1.0f, 0.0f),   // acceleration (gravity)
+		XMFLOAT3(0.0f, 0.5f, 0.0f),   // acceleration
 		particleMat,                   // material
-		1,                             // spriteSheetWidth
-		1,                             // spriteSheetHeight
+		5,                             // spriteSheetWidth
+		5,                             // spriteSheetHeight
 		1.0f,                          // spriteSheetSpeedScale
 		false,                         // paused
 		true                           // visible
-	);
+	));
 }
 
 
@@ -421,7 +418,9 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	emitter->Update(deltaTime);
+	for (auto& e : emitters) {
+		e->Update(deltaTime);
+	}
 
 	for (auto i = 1; i < entities.size(); i++) {
 		entities[i]->GetTransform()->Rotate(0, deltaTime, deltaTime);
@@ -475,7 +474,9 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
-		emitter->Draw(camera);
+		for (auto& e : emitters) {
+			e->Draw(camera);
+		}
 
 		// Transition back to present
 		{

@@ -124,6 +124,25 @@ void Emitter::EmitParticle()
 	livingParticleCount++;
 }
 
+void Emitter::SendParticleDataToGPU()
+{
+	// Update particle buffer data
+	D3D12_RANGE readRange = { 0, 0 };
+	void* mappedData;
+	particleBuffer->Map(0, &readRange, &mappedData);
+	if (aliveIndex < deadIndex) {
+		// map from alive to dead
+		memcpy(mappedData, particles + aliveIndex, sizeof(Particle) * livingParticleCount);
+	}
+	else {
+		// Copy from start to dead
+		memcpy(mappedData, particles, sizeof(Particle) * deadIndex);
+		// Copy from alive to end of array
+		memcpy((Particle*)mappedData + deadIndex, particles + aliveIndex, (maxParticles - livingParticleCount));
+	}
+	particleBuffer->Unmap(0, nullptr);
+}
+
 Emitter::Emitter(int maxParticles, 
 	int particlesPerSecond,
 	float lifetime, 
@@ -349,18 +368,6 @@ void Emitter::CreateRootSigAndPipelineState()
 
 void Emitter::Update(float deltaTime)
 {
-	// Debug output
-	static float debugTimer = 0;
-	debugTimer += deltaTime;
-	if (debugTimer > 1.0f) {
-		printf("Particles: %d alive, %d total\n", livingParticleCount, maxParticles);
-		debugTimer = 0;
-	}
-
-	if (paused) {
-		return;
-	}
-
 	totalEmitterTime += deltaTime;
 	timeSinceLastEmission += deltaTime;
 
@@ -415,12 +422,7 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	}
 	
 
-	// Update particle buffer data
-	D3D12_RANGE readRange = { 0, 0 };
-	void* mappedData;
-	particleBuffer->Map(0, &readRange, &mappedData);
-	memcpy(mappedData, particles, sizeof(Particle) * maxParticles);
-	particleBuffer->Unmap(0, nullptr);
+	SendParticleDataToGPU();
 
 	// Set pipeline state
 	Graphics::CommandList->SetPipelineState(pipelineState.Get());

@@ -84,6 +84,8 @@ private:
 	void UpdateParticle(int particleIndex);
 	void EmitParticle();
 
+	void SendParticleDataToGPU();
+
 public:
 	Emitter(
 		int maxParticles,
