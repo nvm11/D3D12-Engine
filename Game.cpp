@@ -379,7 +379,7 @@ void Game::InitializeParticleSystem()
 		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), // endColor (red, fading out)
 		XMFLOAT3(0.0f, 2.0f, 0.0f),    // startVelocity
 		XMFLOAT3(1.0f, 0.5f, 1.0f),    // velocityRandomRange
-		XMFLOAT3(0.0f, -2.0f, 0.0f),   // emitterPosition
+		XMFLOAT3(0.0f, 0.0f, 3.0f),   // emitterPosition
 		XMFLOAT3(0.5f, 0.0f, 0.5f),    // positionRandomRange
 		XMFLOAT2(0.0f, XM_2PI),        // rotationStartMinMax
 		XMFLOAT2(0.0f, XM_2PI),        // rotationEndMinMax
