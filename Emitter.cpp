@@ -313,7 +313,7 @@ void Emitter::CreateRootSigAndPipelineState()
 	psoDesc.InputLayout.pInputElementDescs = nullptr;
 
 	// Enable alpha blending for particles
-	psoDesc.BlendState.RenderTarget[0].BlendEnable = false;
+	psoDesc.BlendState.RenderTarget[0].BlendEnable = true;
 	psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
