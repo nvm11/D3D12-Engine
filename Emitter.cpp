@@ -14,7 +14,6 @@ void Emitter::CreateParticles()
 	// Delete and release existing resources
 	if (particles) delete[] particles;
 	if (indexBuffer)indexBuffer.Reset();
-	/*particleBuffer.Reset();*/
 
 	// Set up the particle array
 	particles = new Particle[maxParticles];
@@ -36,11 +35,11 @@ void Emitter::CreateParticles()
 	}
 
 	// Create the index buffer
-	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), indexCount, indices);
+	indexBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), numIndices, indices);
 
 	// Set up IB view
 	ibView.Format = DXGI_FORMAT_R32_UINT;
-	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * indexCount);
+	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * numIndices);
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 
 	// Clean up memory (already in gpu)
@@ -122,7 +121,7 @@ void Emitter::UpdateParticle(int particleIndex)
 void Emitter::EmitParticle()
 {
 	// Can we emit?
-	if (livingParticleCount >= maxParticles) {
+	if (livingParticleCount == maxParticles) {
 		return;
 	}
 
@@ -376,6 +375,14 @@ void Emitter::CreateRootSigAndPipelineState()
 
 void Emitter::Update(float deltaTime)
 {
+	// Debug output
+	static float debugTimer = 0;
+	debugTimer += deltaTime;
+	if (debugTimer > 1.0f) {
+		printf("Particles: %d alive, %d total\n", livingParticleCount, maxParticles);
+		debugTimer = 0;
+	}
+
 	if (paused) {
 		return;
 	}
@@ -383,38 +390,37 @@ void Emitter::Update(float deltaTime)
 	totalEmitterTime += deltaTime;
 	timeSinceLastEmission += deltaTime;
 
-	// Data to update?
-	if (livingParticleCount <= 0) {
-		return;
-	}
-
+	
 	// Update new particles
 	// Cyclic buffer
-	if (aliveIndex < deadIndex) {
-		// All particles are contiguous
-		// 0 -------- FIRST ALIVE ----------- FIRST DEAD -------- MAX
-		// |    dead    |            alive       |         dead    |
-		for (int i = aliveIndex; i < deadIndex; i++) {
-			UpdateParticle(i);
+	if (livingParticleCount > 0)
+	{
+		if (aliveIndex < deadIndex) {
+			// All particles are contiguous
+			// 0 -------- FIRST ALIVE ----------- FIRST DEAD -------- MAX
+			// |    dead    |            alive       |         dead    |
+			for (int i = aliveIndex; i < deadIndex; i++) {
+				UpdateParticle(i);
+			}
 		}
-	}
-	else if (deadIndex > aliveIndex) {
-		// Alive particles wrap around
-		// 0 -------- FIRST DEAD ----------- FIRST ALIVE -------- MAX
-		// |    alive    |            dead       |         alive   |
-		// Update first chunk
-		for (int i = aliveIndex; i < maxParticles; i++) {
-			UpdateParticle(i);
+		else if (deadIndex < aliveIndex) {
+			// Alive particles wrap around
+			// 0 -------- FIRST DEAD ----------- FIRST ALIVE -------- MAX
+			// |    alive    |            dead       |         alive   |
+			// Update first chunk
+			for (int i = aliveIndex; i < maxParticles; i++) {
+				UpdateParticle(i);
+			}
+			// Update second chunk
+			for (int i = 0; i < deadIndex; i++) {
+				UpdateParticle(i);
+			}
 		}
-		// Update second chunk
-		for (int i = 0; i < deadIndex; i++) {
-			UpdateParticle(i);
-		}
-	}
-	else {
-		// All particles are dead/alive
-		for (int i = 0; i < maxParticles; i++) {
-			UpdateParticle(i);
+		else {
+			// All particles are dead/alive
+			for (int i = 0; i < maxParticles; i++) {
+				UpdateParticle(i);
+			}
 		}
 	}
 
@@ -430,7 +436,7 @@ void Emitter::Update(float deltaTime)
 void Emitter::Draw(std::shared_ptr<Camera> cam)
 {
 	// Need to emit?
-	if (!visible && livingParticleCount <= 0) {
+	if (!visible || livingParticleCount <= 0) {
 		return;
 	}
 
@@ -454,7 +460,7 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 
 	// Create separate constant buffers
 	ParticleExternalData vertexData = CreateConstantBuffer(cam);
-	DirectX::XMFLOAT3 pixelData = { material->GetColorTint() }; // Some pixel-specific struct
+	DirectX::XMFLOAT3 pixelData = { material->GetColorTint() };
 
 	D3D12_GPU_DESCRIPTOR_HANDLE vertexCBVHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
 		(void*)(&vertexData), sizeof(ParticleExternalData));
