@@ -80,7 +80,6 @@ private:
 
 	void CreateParticles();
 	void InitializeGPUResources();
-	ParticleExternalData CreateConstantBuffer(std::shared_ptr<Camera> cam);
 	void CreateDescriptors();
 	void UpdateParticle(int particleIndex);
 	void EmitParticle();

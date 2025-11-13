@@ -10,7 +10,7 @@ cbuffer externalData : register(b0)
     
     float currentTime;
     float3 acceleration;
-    
+   
     int spriteSheetWidth;
     int spriteSheetHeight;
     float spriteSheetFrameWidth;
@@ -22,6 +22,7 @@ cbuffer externalData : register(b0)
     float lifetime;
     
     int constrainYAxis;
+    float3 colorTint;
 };
 
 struct Particle

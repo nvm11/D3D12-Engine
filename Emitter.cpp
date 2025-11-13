@@ -60,32 +60,6 @@ void Emitter::InitializeGPUResources()
 	CreateParticles(); // This creates the index buffer
 }
 
-ParticleExternalData Emitter::CreateConstantBuffer(std::shared_ptr<Camera> cam)
-{
-	// Set constant buffer data
-	ParticleExternalData particleData = {};
-	particleData.view = cam->GetView();
-	particleData.projection = cam->GetProjection();
-	particleData.startColor = startColor;
-	particleData.endColor = endColor;
-	particleData.currentTime = totalEmitterTime;
-	particleData.acceleration = acceleration;
-	particleData.spriteSheetWidth = spriteSheetWidth;
-	particleData.spriteSheetHeight = spriteSheetHeight;
-	particleData.spriteSheetFrameWidth = spriteSheetFrameWidth;
-	particleData.spriteSheetFrameHeight = spriteSheetFrameHeight;
-	particleData.spriteSheetSpeedScale = spriteSheetSpeedScale;
-	particleData.startSize = startSize;
-	particleData.endSize = endSize;
-	particleData.lifetime = lifetime;
-	particleData.constrainYAxis = constrainYAxis ? 1 : 0;
-	particleData.colorTint = material->GetColorTint();
-
-	return particleData;
-	// Send data to the buffer
-	//memcpy(&constantBufferData, &particleData, sizeof(ParticleExternalData));
-}
-
 void Emitter::CreateDescriptors()
 {
 	// Create SRV for particle structured buffer
@@ -439,9 +413,7 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	if (!visible || livingParticleCount <= 0) {
 		return;
 	}
-
-	// Update constant buffer data
-	ParticleExternalData p = CreateConstantBuffer(cam);
+	
 
 	// Update particle buffer data
 	D3D12_RANGE readRange = { 0, 0 };
@@ -459,11 +431,35 @@ void Emitter::Draw(std::shared_ptr<Camera> cam)
 	Graphics::CommandList->IASetIndexBuffer(&ibView);
 
 	// Create separate constant buffers
-	ParticleExternalData vertexData = CreateConstantBuffer(cam);
+	// Update cbuffer data
+	ParticleExternalData particleData = {};
+
+	particleData.view = cam->GetView();
+	particleData.projection = cam->GetProjection();
+	particleData.startColor = startColor;
+	particleData.endColor = endColor;
+	particleData.currentTime = totalEmitterTime;
+	particleData.acceleration = acceleration;
+	particleData.spriteSheetWidth = spriteSheetWidth;
+	particleData.spriteSheetHeight = spriteSheetHeight;
+	particleData.spriteSheetFrameWidth = spriteSheetFrameWidth;
+	particleData.spriteSheetFrameHeight = spriteSheetFrameHeight;
+	particleData.spriteSheetSpeedScale = spriteSheetSpeedScale;
+	particleData.startSize = startSize;
+	particleData.endSize = endSize;
+	particleData.lifetime = lifetime;
+	particleData.constrainYAxis = constrainYAxis ? 1 : 0;
+	if (material) {
+		particleData.colorTint = material->GetColorTint();
+	}
+	else {
+		particleData.colorTint = DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f); // Default white
+	}
+
 	DirectX::XMFLOAT3 pixelData = { material->GetColorTint() };
 
 	D3D12_GPU_DESCRIPTOR_HANDLE vertexCBVHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-		(void*)(&vertexData), sizeof(ParticleExternalData));
+		(void*)(&particleData), sizeof(ParticleExternalData));
 
 	D3D12_GPU_DESCRIPTOR_HANDLE pixelCBVHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
 		(void*)(&pixelData), sizeof(DirectX::XMFLOAT3));
