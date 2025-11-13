@@ -54,7 +54,6 @@ private:
 	std::shared_ptr<Mesh> sphere;
 	// Particle system
 	std::vector<std::shared_ptr<Emitter>> emitters;
-	std::shared_ptr<Material> particleMat;
 
 	// Helper to test particle systems
 	void InitializeParticleSystem();

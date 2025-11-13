@@ -357,18 +357,30 @@ void Game::CreateRootSigAndPipelineState()
 void Game::InitializeParticleSystem()
 {
 	// Load a texture for particles (create a simple particle texture first)
-	D3D12_CPU_DESCRIPTOR_HANDLE particleTexture = Graphics::LoadTexture(FixPath(assetPath + L"Particles/explosion_spritesheet.png").c_str());
+	D3D12_CPU_DESCRIPTOR_HANDLE explosionTexture = Graphics::LoadTexture(FixPath(assetPath + L"Particles/explosion_spritesheet.png").c_str());
 
-	// Create particle material
-	particleMat = std::make_shared<Material>(pipelineState);
-	particleMat->AddTexture(particleTexture, 0);
-	particleMat->FinalizeMaterial();
+	// Create explosion material
+	std::shared_ptr<Material> explosionMat = std::make_shared<Material>(pipelineState);
+	explosionMat->AddTexture(explosionTexture, 0);
+	explosionMat->FinalizeMaterial();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE magicTexture = Graphics::LoadTexture(FixPath(assetPath + L"Particles/magic_05.png").c_str());
+
+	std::shared_ptr<Material> magicMat = std::make_shared<Material>(pipelineState);
+	magicMat->AddTexture(magicTexture, 0);
+	magicMat->FinalizeMaterial();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE sparkTexture = Graphics::LoadTexture(FixPath(assetPath + L"Particles/slash_03.png").c_str());
+
+	std::shared_ptr<Material> sparkMat = std::make_shared<Material>(pipelineState);
+	sparkMat->AddTexture(sparkTexture, 0);
+	sparkMat->FinalizeMaterial();
 
 	// Create particle emitter with various parameters
 	emitters.push_back(std::make_shared<Emitter>(
 		1000,                          // maxParticles
 		100,                            // particlesPerSecond  
-		4.0f,                          // lifetime
+		1.0f,                          // lifetime
 		1.0f,                          // startSize
 		1.0f,                         // endSize
 		false,                         // constrainYAxis
@@ -376,12 +388,60 @@ void Game::InitializeParticleSystem()
 		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f), // endColor (red, fading out)
 		XMFLOAT3(0.0f, 5.0f, 0.0f),    // startVelocity
 		XMFLOAT3(1.0f, 0.5f, 1.0f),    // velocityRandomRange
-		XMFLOAT3(0.0f, 0.0f, 3.0f),   // emitterPosition
+		XMFLOAT3(-1.0f, 0.0f, 3.0f),   // emitterPosition
 		XMFLOAT3(0.25f, 0.0f, 0.25f),    // positionRandomRange
 		XMFLOAT2(0.0f, XM_2PI),        // rotationStartMinMax
 		XMFLOAT2(0.0f, XM_2PI),        // rotationEndMinMax
 		XMFLOAT3(0.0f, 0.5f, 0.0f),   // acceleration
-		particleMat,                   // material
+		explosionMat,                   // material
+		5,                             // spriteSheetWidth
+		5,                             // spriteSheetHeight
+		1.0f,                          // spriteSheetSpeedScale
+		false,                         // paused
+		true                           // visible
+	));
+
+	emitters.push_back(std::make_shared<Emitter>(
+		100,                      
+		10,                       
+		0.5f,                      
+		0.05f,                      
+		1.0f,                      
+		false,                     
+		XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f), 
+		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f), 
+		XMFLOAT3(0.5f, -0.5f, 1.0f),
+		XMFLOAT3(1.0f, -1.0f, 1.0f),  
+		XMFLOAT3(1.0f, 0.0f, 1.0f),  
+		XMFLOAT3(0.5f, 0.0f, 0.5f),
+		XMFLOAT2(0.0f, XM_PI),      
+		XMFLOAT2(0.0f, XM_PI),      
+		XMFLOAT3(0.0f, -0.5f, 1.0f),  
+		magicMat,
+		1,                           
+		1,                           
+		1.0f,                        
+		false,                       
+		true                         
+	));
+
+	emitters.push_back(std::make_shared<Emitter>(
+		2000,                          // maxParticles
+		400,                            // particlesPerSecond  
+		3.0f,                          // lifetime
+		0.1f,                          // startSize
+		0.5f,                         // endSize
+		false,                         // constrainYAxis
+		XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f), // startColor (orange)
+		XMFLOAT4(0.0f, 1.0f, 0.5f, 1.0f), // endColor (red, fading out)
+		XMFLOAT3(1.0f, 0.4f, 0.0f),    // startVelocity
+		XMFLOAT3(1.0f, 0.5f, 0.0f),    // velocityRandomRange
+		XMFLOAT3(4.0f, 0.0f, 3.0f),   // emitterPosition
+		XMFLOAT3(0.2f, 0.2f, 0.2f),    // positionRandomRange
+		XMFLOAT2(0.0f, 0.0f),        // rotationStartMinMax
+		XMFLOAT2(0.0f, 0.0f),        // rotationEndMinMax
+		XMFLOAT3(0.0f, 0.8f, 0.0f),   // acceleration
+		sparkMat,                   // material
 		5,                             // spriteSheetWidth
 		5,                             // spriteSheetHeight
 		1.0f,                          // spriteSheetSpeedScale

@@ -12,10 +12,11 @@
 * Reading in .obj Files
 * Perspective and Orthogonal Cameras
 * Multi-Frame Synchronization 
+* Particle System
 
 ## Current Missing Features
 * ImGui Support
-* Particle System
+* SSAO
 
 ## Resources Used
 * [D3D11 Hello Triangle](https://github.com/vixorien/D3D11Starter)
