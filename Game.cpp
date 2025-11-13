@@ -25,7 +25,7 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game()
 {
-	//CreateRootSigAndPipelineState();
+	CreateRootSigAndPipelineState();
 	//CreateGeometry();
 
 	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f),
