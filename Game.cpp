@@ -151,7 +151,7 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
-		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), refractionShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"RefractionPS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
 	}
 
 	// Input layout
