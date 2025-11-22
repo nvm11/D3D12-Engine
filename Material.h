@@ -21,8 +21,9 @@ public:
 	DirectX::XMFLOAT2 GetUVScale() const;
 	DirectX::XMFLOAT2 GetUVOffset() const;
 	DirectX::XMFLOAT3 GetColorTint() const;
-	float GetRoughness();
-	float GetMetal();
+	float GetRoughness() const;
+	float GetMetal() const;
+	bool GetRefractive() const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs() const;
 
 	// Setters
@@ -32,6 +33,7 @@ public:
 	void SetColorTint(DirectX::XMFLOAT3 colorTint);
 	void SetRoughness(float roughness);
 	void SetMetal(float metal);
+	void SetRefractive(bool refractive);
 
 private:
 	// Material properties
@@ -40,6 +42,7 @@ private:
 	DirectX::XMFLOAT2 offset = DirectX::XMFLOAT2(0, 0); // uv offset
 	float roughness;
 	float metal;
+	bool refractive;
 
 	// Pipeline state and descriptors
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;

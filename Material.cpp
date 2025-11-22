@@ -10,7 +10,10 @@ Material::Material(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 	scale(scale),
 	offset(offset),
 	finalized(false),
-	highestSRVIndex(-1)
+	highestSRVIndex(-1),
+	metal(0.0f),
+	roughness(0.0f),
+	refractive(false)
 {
 	finalGPUHandleForSRVs = {};
 	ZeroMemory(textureSRVsBySlot, sizeof(D3D12_CPU_DESCRIPTOR_HANDLE) * 128);
@@ -69,14 +72,19 @@ DirectX::XMFLOAT3 Material::GetColorTint() const
 	return colorTint;
 }
 
-float Material::GetRoughness()
+float Material::GetRoughness() const
 {
 	return roughness;
 }
 
-float Material::GetMetal()
+float Material::GetMetal() const
 {
 	return metal;
+}
+
+bool Material::GetRefractive() const
+{
+	return refractive;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() const
@@ -112,4 +120,9 @@ void Material::SetRoughness(float roughness)
 void Material::SetMetal(float metal)
 {
 	this->metal = metal;
+}
+
+void Material::SetRefractive(bool refractive)
+{
+	this->refractive = refractive;
 }
