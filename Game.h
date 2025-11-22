@@ -37,6 +37,7 @@ private:
 	// Pipeline
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;
 	// Geometry
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
@@ -49,6 +50,7 @@ private:
 	// Scene
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<Entity>> entities;
+	std::vector<std::shared_ptr<Entity>> refractiveEntities;
 	unsigned int lightCount = 0;
 	std::vector<Light> lights;
 	std::shared_ptr<Mesh> sphere;

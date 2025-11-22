@@ -90,6 +90,11 @@ void Game::CreateGeometry()
 	cobbleMat->AddTexture(cobblestoneMetal, 3);
 	cobbleMat->FinalizeMaterial();
 
+	std::shared_ptr<Material> refractiveMat = std::make_shared<Material>(refractionPipelineState);
+	cobbleMat->AddTexture(cobblestoneNormals, 0);
+	refractiveMat->SetRefractive(true);
+	refractiveMat->FinalizeMaterial();
+
 	// Load meshes
 	const std::shared_ptr<Mesh> cube = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cube.obj").c_str());
 	const std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/sphere.obj").c_str());
@@ -111,7 +116,8 @@ void Game::CreateGeometry()
 	entitySphere->GetTransform()->SetPosition(-0, 5, 0);
 
 	// Add to list
-	entities.push_back(entityCube);
+	// Cube will be refractive
+	//entities.push_back(entityCube);
 	entities.push_back(entityHelix);
 	entities.push_back(entitySphere);
 	entities.push_back(entityTorus);
@@ -120,6 +126,10 @@ void Game::CreateGeometry()
 	for (auto& e : entities) {
 		e->SetMaterial(cobbleMat);
 	}
+
+	// Add refractive entities
+	entityCube->SetMaterial(refractiveMat);
+	refractiveEntities.push_back(entityCube);
 
 	// Create Lights
 	Light directionLight = {};
