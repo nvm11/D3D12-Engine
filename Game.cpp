@@ -647,6 +647,42 @@ void Game::Draw(float deltaTime, float totalTime)
 			}
 		}
 
+		// Temporary placement, will most likely need to be moved
+		// Refractive Entities
+		for (auto& e : refractiveEntities) {
+			// Grab the material for this entity
+			std::shared_ptr<Material> mat = e->GetMaterial();
+
+			// Set the pipeline state for this material
+			{
+				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+
+				// Set the SRV descriptor handle for this material's textures
+				// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
+			}
+			
+			// Prepare structs to send to VS
+			{
+				VertexShaderExternalData vsData = {};
+				vsData.world = e->GetTransform()->GetWorldMatrix();
+				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+				vsData.view = camera->GetView();
+				vsData.projection = camera->GetProjection();
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+				// Set this constant buffer handle
+				// Note: This assumes that descriptor table 0 is the
+				//       place to put this particular descriptor.  This
+				//       is based on how we set up our root signature.
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+			}
+		}
+
 		// Transition back to present
 		{
 			D3D12_RESOURCE_BARRIER rb = {};
