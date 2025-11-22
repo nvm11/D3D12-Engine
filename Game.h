@@ -50,7 +50,10 @@ private:
 	// Scene
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<Entity>> entities;
+
 	std::vector<std::shared_ptr<Entity>> refractiveEntities;
+	const float refractiveScale = 0.25f;
+
 	unsigned int lightCount = 0;
 	std::vector<Light> lights;
 	std::shared_ptr<Mesh> sphere;

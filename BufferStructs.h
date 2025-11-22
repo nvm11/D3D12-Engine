@@ -72,3 +72,20 @@ struct ParticleExternalData
 	int constrainYAxis;
 	DirectX::XMFLOAT3 colorTint;
 };
+
+struct RefractiveExternalData
+{
+	Light lights[MAX_LIGHTS];
+	int lightCount;
+
+	DirectX::XMFLOAT3 clearColor;
+	DirectX::XMFLOAT3 cameraPosition;
+
+	DirectX::XMFLOAT2 uvScale;
+	DirectX::XMFLOAT2 uvOffset;
+	
+	float screenWidth;
+	float screenHeight;
+	float refractionScale;
+	bool useRefractionSilhouette;
+};
