@@ -143,6 +143,7 @@ void Game::CreateRootSigAndPipelineState()
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> refractionShaderByteCode;
 
 	// Load shaders
 	{
@@ -150,6 +151,7 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), refractionShaderByteCode.GetAddressOf());
 	}
 
 	// Input layout
