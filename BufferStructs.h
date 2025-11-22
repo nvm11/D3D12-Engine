@@ -89,3 +89,8 @@ struct RefractiveExternalData
 	float refractionScale;
 	bool useRefractionSilhouette;
 };
+
+struct RefractionResources
+{
+	Microsoft::WRL::ComPtr<ID3D12Resource> SceneColor;
+};
