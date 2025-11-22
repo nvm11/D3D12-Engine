@@ -662,7 +662,7 @@ void Game::Draw(float deltaTime, float totalTime)
 				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
 			}
 			
-			// Prepare structs to send to VS
+			// Prepare struct for VS
 			{
 				VertexShaderExternalData vsData = {};
 				vsData.world = e->GetTransform()->GetWorldMatrix();
@@ -680,6 +680,21 @@ void Game::Draw(float deltaTime, float totalTime)
 				//       place to put this particular descriptor.  This
 				//       is based on how we set up our root signature.
 				Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+			}
+
+			// Prepare PS struct
+			{
+				RefractiveExternalData psData = {};
+				memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
+				psData.lightCount = lightCount;
+				psData.clearColor = DirectX::XMFLOAT3(clearColor);
+				psData.cameraPosition = camera->GetTransform().GetPosition();
+				psData.uvScale = mat->GetUVScale();
+				psData.uvOffset = mat->GetUVOffset();
+				psData.screenWidth = Window::Width();
+				psData.screenHeight = Window::Height();
+				psData.refractionScale = refractiveScale;
+				psData.useRefractionSilhouette = false;
 			}
 		}
 
