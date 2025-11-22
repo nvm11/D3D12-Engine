@@ -26,7 +26,7 @@ using namespace DirectX;
 Game::Game()
 {
 	CreateRootSigAndPipelineState();
-	//CreateGeometry();
+	CreateGeometry();
 
 	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f),
 		XM_PIDIV4,
@@ -35,7 +35,7 @@ Game::Game()
 		100.0f);
 
 	// Create Emitter
-	InitializeParticleSystem();
+	//InitializeParticleSystem();
 
 	// Initialize raytracing
 	//RayTracing::Initialize(
@@ -98,23 +98,23 @@ void Game::CreateGeometry()
 	const std::shared_ptr<Mesh> cylinder = std::make_shared<Mesh>(FixPath(assetPath + L"Meshes/cylinder.obj").c_str());
 
 	// Create entities
-	//std::shared_ptr<Entity> entityCube = std::make_shared<Entity>(cube);
-	//entityCube->GetTransform()->SetPosition(5, 0, 0);
+	std::shared_ptr<Entity> entityCube = std::make_shared<Entity>(cube);
+	entityCube->GetTransform()->SetPosition(5, 0, 0);
 
-	//std::shared_ptr<Entity> entityHelix = std::make_shared<Entity>(helix);
-	//entityHelix->GetTransform()->SetPosition(5, 5, 0);
+	std::shared_ptr<Entity> entityHelix = std::make_shared<Entity>(helix);
+	entityHelix->GetTransform()->SetPosition(5, 5, 0);
 
-	//std::shared_ptr<Entity> entitySphere = std::make_shared<Entity>(sphere);
-	//entitySphere->GetTransform()->SetPosition(-5, 0, 0);
+	std::shared_ptr<Entity> entitySphere = std::make_shared<Entity>(sphere);
+	entitySphere->GetTransform()->SetPosition(-5, 0, 0);
 
-	//std::shared_ptr<Entity> entityTorus = std::make_shared<Entity>(torus);
-	//entitySphere->GetTransform()->SetPosition(-0, 5, 0);
+	std::shared_ptr<Entity> entityTorus = std::make_shared<Entity>(torus);
+	entitySphere->GetTransform()->SetPosition(-0, 5, 0);
 
-	//// Add to list
-	//entities.push_back(entityCube);
-	//entities.push_back(entityHelix);
-	//entities.push_back(entitySphere);
-	//entities.push_back(entityTorus);
+	// Add to list
+	entities.push_back(entityCube);
+	entities.push_back(entityHelix);
+	entities.push_back(entitySphere);
+	entities.push_back(entityTorus);
 
 	// Add material to entites
 	for (auto& e : entities) {
@@ -132,7 +132,6 @@ void Game::CreateGeometry()
 	lights.push_back(directionLight);
 	// Increment light count
 	lightCount++;
-
 }
 
 // --------------------------------------------------------
@@ -458,6 +457,30 @@ void Game::InitializeParticleSystem()
 // --------------------------------------------------------
 void Game::OnResize()
 {
+	// Resize the viewport and scissor rectangle
+	{
+		// Set up the viewport so we render into the correct
+		// portion of the render target
+		viewport = {};
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.Width = (float)Window::Width();
+		viewport.Height = (float)Window::Height();
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+
+		// Define a scissor rectangle that defines a portion of
+		// the render target for clipping.  This is different from
+		// a viewport in that it is applied after the pixel shader.
+		// We need at least one of these, but we're rendering to 
+		// the entire window, so it'll be the same size.
+		scissorRect = {};
+		scissorRect.left = 0;
+		scissorRect.top = 0;
+		scissorRect.right = Window::Width();
+		scissorRect.bottom = Window::Height();
+	}
+
 	if (camera) {
 		camera->UpdateProjectionMatrix(Window::AspectRatio());
 	}
@@ -478,9 +501,9 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	for (auto& e : emitters) {
-		e->Update(deltaTime);
-	}
+	//for (auto& e : emitters) {
+	//	e->Update(deltaTime);
+	//}
 
 	for (auto i = 1; i < entities.size(); i++) {
 		entities[i]->GetTransform()->Rotate(0, deltaTime, deltaTime);
@@ -509,7 +532,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(1, &rb);
 
 		// Clear RTV and DSV
-		FLOAT clearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Dark gray
+		FLOAT clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Dark gray
 		// Clear the RTV
 		Graphics::CommandList->ClearRenderTargetView(
 			Graphics::RTVHandles[Graphics::SwapChainIndex()],
@@ -524,18 +547,92 @@ void Game::Draw(float deltaTime, float totalTime)
 			0,		// Not clearing stencil, but need a value
 			0, 0);	// No scissor rects
 
-		// Set constant buffer descriptor heap
-		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+		// Setup Complete
+		// Now Render
+		{
+			// Set overall pipeline state
+			Graphics::CommandList->SetPipelineState(pipelineState.Get());
 
-		// Set up other commands for rendering
-		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
-		Graphics::CommandList->RSSetViewports(1, &viewport);
-		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			// Root sig (must happen before root descriptor table)
+			Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
 
-		for (auto& e : emitters) {
-			e->Draw(camera);
+			// Set constant buffer descriptor heap
+			Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+
+			// Set up other commands for rendering
+			Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+			Graphics::CommandList->RSSetViewports(1, &viewport);
+			Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+			Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			for (auto& e : entities)
+			{
+				// Grab the material for this entity
+				std::shared_ptr<Material> mat = e->GetMaterial();
+
+				// Set the pipeline state for this material
+				{
+					Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+
+					// Set the SRV descriptor handle for this material's textures
+					// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
+					Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
+				}
+
+				// Set up the data we intend to use for drawing this entity
+				{
+					VertexShaderExternalData vsData = {};
+					vsData.world = e->GetTransform()->GetWorldMatrix();
+					vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+					vsData.view = camera->GetView();
+					vsData.projection = camera->GetProjection();
+
+					// Send this to a chunk of the constant buffer heap
+					// and grab the GPU handle for it so we can set it for this draw
+					D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+						(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+					// Set this constant buffer handle
+					// Note: This assumes that descriptor table 0 is the
+					//       place to put this particular descriptor.  This
+					//       is based on how we set up our root signature.
+					Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+				}
+
+				// Pixel shader data and cbuffer setup
+				{
+					PixelShaderExternalData psData = {};
+					psData.uvScale = mat->GetUVScale();
+					psData.uvOffset = mat->GetUVOffset();
+					psData.cameraPosition = camera->GetTransform().GetPosition();
+					psData.lightCount = lightCount;
+					memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+
+					// Send this to a chunk of the constant buffer heap
+					// and grab the GPU handle for it so we can set it for this draw
+					D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+						(void*)(&psData), sizeof(PixelShaderExternalData));
+
+					// Set this constant buffer handle
+					// Note: This assumes that descriptor table 1 is the
+					//       place to put this particular descriptor.  This
+					//       is based on how we set up our root signature.
+					Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+				}
+
+				// Grab the mesh and its buffer views
+				std::shared_ptr<Mesh> mesh = e->GetMesh();
+				D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
+				D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
+
+				// Set the geometry
+				Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
+				Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+				// Draw
+				Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
+			}
 		}
 
 		// Transition back to present
