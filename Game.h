@@ -50,15 +50,19 @@ private:
 	// Scene
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<Entity>> entities;
-
-	std::vector<std::shared_ptr<Entity>> refractiveEntities;
-	const float refractiveScale = 0.25f;
-
 	unsigned int lightCount = 0;
 	std::vector<Light> lights;
 	std::shared_ptr<Mesh> sphere;
+	
 	// Particle system
 	std::vector<std::shared_ptr<Emitter>> emitters;
+
+	// Refraction
+	std::vector<std::shared_ptr<Entity>> refractiveEntities;
+	const float refractiveScale = 0.25f;
+	Microsoft::WRL::ComPtr<ID3D12Resource> sceneColorRTV;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorRTVHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE sceneColorRTVHandle{};
 
 	// Helper to test particle systems
 	void InitializeParticleSystem();

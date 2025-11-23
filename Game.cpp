@@ -463,7 +463,27 @@ void Game::InitializeParticleSystem()
 
 void Game::SetupRefractionRTVs()
 {
-	
+	// Describe Render Target
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Alignment = 0;
+	desc.Width = Window::Width();
+	desc.Height = Window::Height();
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	// Setup Clear Value
+	D3D12_CLEAR_VALUE clear = {};
+	clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	clear.DepthStencil.Depth = 1.0f;
+	clear.DepthStencil.Stencil = 0;
+
+
 }
 
 
