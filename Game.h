@@ -62,5 +62,9 @@ private:
 
 	// Helper to test particle systems
 	void InitializeParticleSystem();
+	// Helper to set up RTVs for Refraction
+	void SetupRefractionRTVs();
+	// Helper to set up Root Sig and Pipeline State for Refraction
+	void RefractionRootSigAndPipelineState();
 };
 

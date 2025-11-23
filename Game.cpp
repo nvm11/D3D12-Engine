@@ -461,6 +461,11 @@ void Game::InitializeParticleSystem()
 	));
 }
 
+void Game::SetupRefractionRTVs()
+{
+	
+}
+
 
 
 // --------------------------------------------------------
