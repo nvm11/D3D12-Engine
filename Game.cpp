@@ -483,7 +483,41 @@ void Game::SetupRefractionRTVs()
 	clear.DepthStencil.Depth = 1.0f;
 	clear.DepthStencil.Stencil = 0;
 
+	// Describe Memory Heap
+	D3D12_HEAP_PROPERTIES heapProps = {};
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProps.CreationNodeMask = 1;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT; // GPU-only memory
+	heapProps.VisibleNodeMask = 1;
 
+	// Create the Resource
+	Graphics::Device->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET, // Start as render target
+		&clear,
+		IID_PPV_ARGS(sceneColorRTV.GetAddressOf()));
+
+	// Create RTV Descriptor Heap
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = 1;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	rtvHeapDesc.NodeMask = 0;
+	
+	Graphics::Device->CreateDescriptorHeap(
+		&rtvHeapDesc,
+		IID_PPV_ARGS(sceneColorRTVHeap.GetAddressOf()));
+
+	// Get CPU handle
+	sceneColorRTVHandle = sceneColorRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	// Create actual RTV
+	Graphics::Device->CreateRenderTargetView(
+		sceneColorRTV.Get(),
+		0,
+		sceneColorRTVHandle);
 }
 
 
