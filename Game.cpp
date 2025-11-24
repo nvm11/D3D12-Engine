@@ -412,27 +412,27 @@ void Game::InitializeParticleSystem()
 	));
 
 	emitters.push_back(std::make_shared<Emitter>(
-		100,                      
-		10,                       
-		0.5f,                      
-		0.05f,                      
-		1.0f,                      
-		false,                     
-		XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f), 
-		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f), 
+		100,
+		10,
+		0.5f,
+		0.05f,
+		1.0f,
+		false,
+		XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f),
+		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),
 		XMFLOAT3(0.5f, -0.5f, 1.0f),
-		XMFLOAT3(1.0f, -1.0f, 1.0f),  
-		XMFLOAT3(1.0f, 0.0f, 1.0f),  
+		XMFLOAT3(1.0f, -1.0f, 1.0f),
+		XMFLOAT3(1.0f, 0.0f, 1.0f),
 		XMFLOAT3(0.5f, 0.0f, 0.5f),
-		XMFLOAT2(0.0f, XM_PI),      
-		XMFLOAT2(0.0f, XM_PI),      
-		XMFLOAT3(0.0f, -0.5f, 1.0f),  
+		XMFLOAT2(0.0f, XM_PI),
+		XMFLOAT2(0.0f, XM_PI),
+		XMFLOAT3(0.0f, -0.5f, 1.0f),
 		magicMat,
-		1,                           
-		1,                           
-		1.0f,                        
-		false,                       
-		true                         
+		1,
+		1,
+		1.0f,
+		false,
+		true
 	));
 
 	emitters.push_back(std::make_shared<Emitter>(
@@ -507,7 +507,7 @@ void Game::SetupRefractionRTVs()
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
-	
+
 	Graphics::Device->CreateDescriptorHeap(
 		&rtvHeapDesc,
 		IID_PPV_ARGS(sceneColorRTVHeap.GetAddressOf()));
@@ -552,21 +552,21 @@ void Game::RefractionRootSigAndPipelineState()
 
 		// Set up the second element - a UV, which is 2 more float values
 		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // After the previous element
-		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;	
-		inputElements[1].SemanticName = "TEXCOORD";			
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+		inputElements[1].SemanticName = "TEXCOORD";
 		inputElements[1].SemanticIndex = 0;
 
 		// Set up the third element - a normal, which is 3 more float values
 		inputElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-		inputElements[2].SemanticName = "NORMAL";					
-		inputElements[2].SemanticIndex = 0;							
+		inputElements[2].SemanticName = "NORMAL";
+		inputElements[2].SemanticIndex = 0;
 
 		// Set up the fourth element - a tangent, which is 2 more float values
 		inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-		inputElements[3].SemanticName = "TANGENT";			
-		inputElements[3].SemanticIndex = 0;					
+		inputElements[3].SemanticName = "TANGENT";
+		inputElements[3].SemanticIndex = 0;
 	}
 
 	// Root Signature
@@ -819,18 +819,86 @@ void Game::Draw(float deltaTime, float totalTime)
 			D3D12_CLEAR_FLAG_DEPTH,
 			1.0f,	// Max Depth value
 			0,		// Not Clearing Stencil, but needs values
-			0,0);   // No scissor rects
+			0, 0);   // No scissor rects
+
+		// Set Overall pipeline state
+		Graphics::CommandList->SetPipelineState(pipelineState.Get());
+		// Root Sig
+		Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
+		// Descriptor Heap
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
 		// Set Render target and viewport
 		Graphics::CommandList->OMSetRenderTargets(1, &sceneColorRTVHandle, true, &Graphics::DSVHandle);
 		Graphics::CommandList->RSSetViewports(1, &viewport);
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		// Render Opaque Entities
 		for (auto& e : entities) {
-			if (!e->GetMaterial()->GetRefractive()) {
-				// TODO: Render
+			if (e->GetMaterial()->GetRefractive()) {
+				continue;
 			}
+
+			std::shared_ptr<Material> mat = e->GetMaterial();
+
+			{
+				// Set Pipeline State
+				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+
+				// Set the SRV Descriptor Handle (assumes descriptor table 2 is for textures)
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
+			}
+
+			// Set up the data we intend to use for drawing this entity
+			{
+				VertexShaderExternalData vsData = {};
+				vsData.world = e->GetTransform()->GetWorldMatrix();
+				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+				vsData.view = camera->GetView();
+				vsData.projection = camera->GetProjection();
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+				// Set this constant buffer handle
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+			}
+
+			// Pixel shader data and cbuffer setup
+			{
+				PixelShaderExternalData psData = {};
+				psData.uvScale = mat->GetUVScale();
+				psData.uvOffset = mat->GetUVOffset();
+				psData.cameraPosition = camera->GetTransform().GetPosition();
+				psData.lightCount = lightCount;
+				memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&psData), sizeof(PixelShaderExternalData));
+
+				// Set this constant buffer handle
+				// Note: This assumes that descriptor table 1 is the
+				//       place to put this particular descriptor.  This
+				//       is based on how we set up our root signature.
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+			}
+
+			// Grab the mesh and its buffer views
+			std::shared_ptr<Mesh> mesh = e->GetMesh();
+			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
+			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
+
+			// Set the geometry
+			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
+			Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+			// Draw
+			Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
 		}
 	}
 
@@ -879,19 +947,68 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(2, barriers);
 	}
 
-	// Set Back Buffer as Render Target
-	{
-		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
-		Graphics::CommandList->RSSetViewports(1, &viewport);
-		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-	}
+	//// Set Back Buffer as Render Target
+	//{
+	//	// Set Overall pipeline state
+	//	Graphics::CommandList->SetPipelineState(refractionPipelineState.Get());
+	//	// Root Sig
+	//	Graphics::CommandList->SetGraphicsRootSignature(refractionRootSignature.Get());
 
-	// Render Refractive Entities
-	for (auto& e : entities) {
-		if (e->GetMaterial()->GetRefractive()) {
-			// TODO: Render
-		}
-	}
+	//	Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+	//	Graphics::CommandList->RSSetViewports(1, &viewport);
+	//	Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+	//}
+
+	//// Render Refractive Entities
+	//for (auto& e : entities) {
+	//	if (!e->GetMaterial()->GetRefractive()) {
+	//		continue;
+	//	}
+
+	//	std::shared_ptr<Material> mat = e->GetMaterial();
+
+	//	// Set up the data we intend to use for drawing this entity
+	//	{
+	//		VertexShaderExternalData vsData = {};
+	//		vsData.world = e->GetTransform()->GetWorldMatrix();
+	//		vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+	//		vsData.view = camera->GetView();
+	//		vsData.projection = camera->GetProjection();
+
+	//		// Send this to a chunk of the constant buffer heap
+	//		// and grab the GPU handle for it so we can set it for this draw
+	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+	//			(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+	//		// Set this constant buffer handle
+	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+	//	}
+
+	//	// Set Up Data used for Pixel Shader
+	//	{
+	//		RefractiveExternalData psData = {};
+	//		psData.lightCount = lightCount;
+	//		psData.clearColor = DirectX::XMFLOAT3(clearColor);
+	//		psData.uvScale = mat->GetUVScale();
+	//		psData.uvOffset = mat->GetUVOffset();
+	//		psData.screenWidth = Window::Width();
+	//		psData.screenHeight = Window::Height();
+	//		psData.refractionScale = refractiveScale;
+	//		psData.useRefractionSilhouette = false;
+	//		memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
+
+	//		// Send this to a chunk of the constant buffer heap
+	//		// and grab the GPU handle for it so we can set it for this draw
+	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+	//			(void*)(&psData), sizeof(PixelShaderExternalData));
+
+	//		// Set this constant buffer handle
+	//		// Note: This assumes that descriptor table 1 is the
+	//		//       place to put this particular descriptor.  This
+	//		//       is based on how we set up our root signature.
+	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+	//	}
+	//}
 
 	// Transition back buffer to present
 	{

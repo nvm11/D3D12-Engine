@@ -27,7 +27,6 @@ cbuffer ExternalData : register(b0)
 
 // Texture related resources
 Texture2D NormalMap : register(t0);
-
 // Refraction requirement
 Texture2D ScreenPixels : register(t1);
 Texture2D RefractionSilhouette : register(t2);
