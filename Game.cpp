@@ -27,6 +27,7 @@ Game::Game()
 {
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
+	SetupRefractionRTVs();
 
 	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f),
 		XM_PIDIV4,
@@ -479,9 +480,11 @@ void Game::SetupRefractionRTVs()
 
 	// Setup Clear Value
 	D3D12_CLEAR_VALUE clear = {};
-	clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	clear.DepthStencil.Depth = 1.0f;
-	clear.DepthStencil.Stencil = 0;
+	clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clear.Color[0] = 0.0f; // R
+	clear.Color[1] = 0.0f; // G  
+	clear.Color[2] = 0.0f; // B
+	clear.Color[3] = 1.0f; // A
 
 	// Describe Memory Heap
 	D3D12_HEAP_PROPERTIES heapProps = {};
@@ -496,7 +499,7 @@ void Game::SetupRefractionRTVs()
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_RENDER_TARGET, // Start as render target
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clear,
 		IID_PPV_ARGS(sceneColorRTV.GetAddressOf()));
 
@@ -556,6 +559,10 @@ void Game::OnResize()
 		camera->UpdateProjectionMatrix(Window::AspectRatio());
 	}
 
+	sceneColorRTV.Reset();
+	sceneColorRTVHeap.Reset();
+	SetupRefractionRTVs();
+
 	// Resize raytracing output texture
 	//RayTracing::ResizeOutputUAV(Window::Width(), Window::Height());
 }
@@ -587,203 +594,124 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
+	// Transition Scene RTV to Render Target
+	{
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = sceneColorRTV.Get();
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE; // From previous frame
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &barrier);
+	}
+
+	// Render Opaque objects to Scene RTV
+	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	{
+
+		Graphics::CommandList->ClearRenderTargetView(
+			sceneColorRTVHandle,
+			clearColor,
+			0,
+			0);
+		Graphics::CommandList->ClearDepthStencilView(
+			Graphics::DSVHandle,
+			D3D12_CLEAR_FLAG_DEPTH,
+			1.0f,	// Max Depth value
+			0,		// Not Clearing Stencil, but needs values
+			0,0);   // No scissor rects
+
+		// Set Render target and viewport
+		Graphics::CommandList->OMSetRenderTargets(1, &sceneColorRTVHandle, true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+
+		// Render Opaque Entities
+		for (auto& e : entities) {
+			if (!e->GetMaterial()->GetRefractive()) {
+				// TODO: Render
+			}
+		}
+	}
+
+	// Transition Scene Color RTV to Resource State
+	{
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = sceneColorRTV.Get();
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &barrier);
+	}
+
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
-	// Clear the render target
 	{
-		// Transition back buffer to render target
+		// Transition back buffer to copy dest
+		D3D12_RESOURCE_BARRIER barriers[2] = {};
+		barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barriers[0].Transition.pResource = currentBackBuffer.Get();
+		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+		barriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+		barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barriers[1].Transition.pResource = sceneColorRTV.Get();
+		barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		barriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+		Graphics::CommandList->ResourceBarrier(2, barriers);
+
+		// Copy opaque RTV to back buffer
+		Graphics::CommandList->CopyResource(currentBackBuffer.Get(), sceneColorRTV.Get());
+
+		// Transition back to appropriate states
+		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+		barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+		Graphics::CommandList->ResourceBarrier(2, barriers);
+	}
+
+	// Set Back Buffer as Render Target
+	{
+		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+	}
+
+	// Render Refractive Entities
+	for (auto& e : entities) {
+		if (e->GetMaterial()->GetRefractive()) {
+			// TODO: Render
+		}
+	}
+
+	// Transition back buffer to present
+	{
 		D3D12_RESOURCE_BARRIER rb = {};
 		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 		rb.Transition.pResource = currentBackBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		Graphics::CommandList->ResourceBarrier(1, &rb);
-
-		// Clear RTV and DSV
-		FLOAT clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Dark gray
-		// Clear the RTV
-		Graphics::CommandList->ClearRenderTargetView(
-			Graphics::RTVHandles[Graphics::SwapChainIndex()],
-			clearColor,
-			0, 0); // No scissor rectangles
-
-		// Clear the depth buffer, too
-		Graphics::CommandList->ClearDepthStencilView(
-			Graphics::DSVHandle,
-			D3D12_CLEAR_FLAG_DEPTH,
-			1.0f,	// Max depth = 1.0f
-			0,		// Not clearing stencil, but need a value
-			0, 0);	// No scissor rects
-
-		// Setup Complete
-		// Now Render
-		{
-			// Set overall pipeline state
-			Graphics::CommandList->SetPipelineState(pipelineState.Get());
-
-			// Root sig (must happen before root descriptor table)
-			Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
-
-
-			// Set constant buffer descriptor heap
-			Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
-
-			// Set up other commands for rendering
-			Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
-			Graphics::CommandList->RSSetViewports(1, &viewport);
-			Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-			Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-			for (auto& e : entities)
-			{
-				// Grab the material for this entity
-				std::shared_ptr<Material> mat = e->GetMaterial();
-
-				// Set the pipeline state for this material
-				{
-					Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
-
-					// Set the SRV descriptor handle for this material's textures
-					// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-					Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
-				}
-
-				// Set up the data we intend to use for drawing this entity
-				{
-					VertexShaderExternalData vsData = {};
-					vsData.world = e->GetTransform()->GetWorldMatrix();
-					vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-					vsData.view = camera->GetView();
-					vsData.projection = camera->GetProjection();
-
-					// Send this to a chunk of the constant buffer heap
-					// and grab the GPU handle for it so we can set it for this draw
-					D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-						(void*)(&vsData), sizeof(VertexShaderExternalData));
-
-					// Set this constant buffer handle
-					// Note: This assumes that descriptor table 0 is the
-					//       place to put this particular descriptor.  This
-					//       is based on how we set up our root signature.
-					Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
-				}
-
-				// Pixel shader data and cbuffer setup
-				{
-					PixelShaderExternalData psData = {};
-					psData.uvScale = mat->GetUVScale();
-					psData.uvOffset = mat->GetUVOffset();
-					psData.cameraPosition = camera->GetTransform().GetPosition();
-					psData.lightCount = lightCount;
-					memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
-
-					// Send this to a chunk of the constant buffer heap
-					// and grab the GPU handle for it so we can set it for this draw
-					D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-						(void*)(&psData), sizeof(PixelShaderExternalData));
-
-					// Set this constant buffer handle
-					// Note: This assumes that descriptor table 1 is the
-					//       place to put this particular descriptor.  This
-					//       is based on how we set up our root signature.
-					Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-				}
-
-				// Grab the mesh and its buffer views
-				std::shared_ptr<Mesh> mesh = e->GetMesh();
-				D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
-				D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
-
-				// Set the geometry
-				Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
-				Graphics::CommandList->IASetIndexBuffer(&ibv);
-
-				// Draw
-				Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
-			}
-		}
-
-		// Temporary placement, will most likely need to be moved
-		// Refractive Entities
-		for (auto& e : refractiveEntities) {
-			// Grab the material for this entity
-			std::shared_ptr<Material> mat = e->GetMaterial();
-
-			// Set the pipeline state for this material
-			{
-				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
-
-				// Set the SRV descriptor handle for this material's textures
-				// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
-			}
-			
-			// Prepare struct for VS
-			{
-				VertexShaderExternalData vsData = {};
-				vsData.world = e->GetTransform()->GetWorldMatrix();
-				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-				vsData.view = camera->GetView();
-				vsData.projection = camera->GetProjection();
-
-				// Send this to a chunk of the constant buffer heap
-				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&vsData), sizeof(VertexShaderExternalData));
-
-				// Set this constant buffer handle
-				// Note: This assumes that descriptor table 0 is the
-				//       place to put this particular descriptor.  This
-				//       is based on how we set up our root signature.
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
-			}
-
-			// Prepare PS struct
-			{
-				RefractiveExternalData psData = {};
-				memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
-				psData.lightCount = lightCount;
-				psData.clearColor = DirectX::XMFLOAT3(clearColor);
-				psData.cameraPosition = camera->GetTransform().GetPosition();
-				psData.uvScale = mat->GetUVScale();
-				psData.uvOffset = mat->GetUVOffset();
-				psData.screenWidth = Window::Width();
-				psData.screenHeight = Window::Height();
-				psData.refractionScale = refractiveScale;
-				psData.useRefractionSilhouette = false;
-			}
-		}
-
-		// Transition back to present
-		{
-			D3D12_RESOURCE_BARRIER rb = {};
-			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			rb.Transition.pResource = currentBackBuffer.Get();
-			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			Graphics::CommandList->ResourceBarrier(1, &rb);
-		}
-
-		// Present
-		{
-			// Must occur BEFORE present
-			Graphics::CloseAndExecuteCommandList();
-
-			// Present the current back buffer and move to the next one
-			bool vsync = Graphics::VsyncState();
-			Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
-
-			Graphics::AdvanceSwapChainIndex();
-
-			// Reset the command list & allocator for the upcoming frame
-			Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
-		}
 	}
+
+	// Execute and Present
+	Graphics::CloseAndExecuteCommandList();
+	bool vsync = Graphics::VsyncState();
+	Graphics::SwapChain->Present(vsync ? 1 : 0, vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+	Graphics::AdvanceSwapChainIndex();
+	Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
 }
 
 
