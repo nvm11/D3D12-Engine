@@ -37,7 +37,6 @@ private:
 	// Pipeline
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;
 	// Geometry
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
@@ -63,6 +62,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> sceneColorRTV;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorRTVHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE sceneColorRTVHandle{};
+
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> refractionRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;
 
 	// Helper to test particle systems
 	void InitializeParticleSystem();

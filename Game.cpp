@@ -154,7 +154,6 @@ void Game::CreateRootSigAndPipelineState()
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
-	Microsoft::WRL::ComPtr<ID3DBlob> refractionShaderByteCode;
 
 	// Load shaders
 	{
@@ -162,7 +161,6 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
-		D3DReadFileToBlob(FixPath(L"RefractionPS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
 	}
 
 	// Input layout
@@ -521,6 +519,207 @@ void Game::SetupRefractionRTVs()
 		sceneColorRTV.Get(),
 		0,
 		sceneColorRTVHandle);
+}
+
+void Game::RefractionRootSigAndPipelineState()
+{
+	// Blobs to hold raw shader byte code used in several steps below
+	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> refractionShaderByteCode;
+
+	// Load shaders
+	{
+		// Read our compiled vertex shader code into a blob
+		// - Essentially just "open the file and plop its contents here"
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"RefractionPS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
+	}
+
+	// Input layout
+	const unsigned int inputElementCount = 4;
+	D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
+	{
+		// Create an input layout that describes the vertex format
+		// used by the vertex shader we're using
+		//  - This is used by the pipeline to know how to interpret the raw data
+		//     sitting inside a vertex buffer
+
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // How far into the vertex is this?  Assume it's after the previous element
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// Most formats are described as color channels, really it just means "Three 32-bit floats"
+		inputElements[0].SemanticName = "POSITION";					// This is "POSITTION" - needs to match the semantics in our vertex shader input!
+		inputElements[0].SemanticIndex = 0;							// This is the 0th position (there could be more)
+
+		// Set up the second element - a UV, which is 2 more float values
+		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // After the previous element
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;	
+		inputElements[1].SemanticName = "TEXCOORD";			
+		inputElements[1].SemanticIndex = 0;
+
+		// Set up the third element - a normal, which is 3 more float values
+		inputElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		inputElements[2].SemanticName = "NORMAL";					
+		inputElements[2].SemanticIndex = 0;							
+
+		// Set up the fourth element - a tangent, which is 2 more float values
+		inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		inputElements[3].SemanticName = "TANGENT";			
+		inputElements[3].SemanticIndex = 0;					
+	}
+
+	// Root Signature
+	{
+		// Describe the range of CBVs needed for the vertex shader
+		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
+		cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeVS.NumDescriptors = 1;
+		cbvRangeVS.BaseShaderRegister = 0;
+		cbvRangeVS.RegisterSpace = 0;
+		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Describe the range of CBVs needed for the pixel shader
+		D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
+		cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangePS.NumDescriptors = 1;
+		cbvRangePS.BaseShaderRegister = 0;
+		cbvRangePS.RegisterSpace = 0;
+		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Create a range of SRV's for textures
+		D3D12_DESCRIPTOR_RANGE srvRange = {};
+		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange.NumDescriptors = 3;		// Set to max number of textures at once (match pixel shader!)
+		srvRange.BaseShaderRegister = 0;	// Starts at t0 (match pixel shader!)
+		srvRange.RegisterSpace = 0;
+		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Create the root parameters
+		D3D12_ROOT_PARAMETER rootParams[3] = {};
+
+		// CBV table param for vertex shader
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
+
+		// CBV table param for pixel shader
+		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
+
+		// SRV table param
+		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+
+		// Create a single sampler
+		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+		anisoWrap.MaxAnisotropy = 16;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 0;  // register(s0)
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+		// Create a Clamp Sampler
+		D3D12_STATIC_SAMPLER_DESC clampSamp = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+		anisoWrap.MaxAnisotropy = 16;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 1;  // register(s0)
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap, clampSamp };
+
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = ARRAYSIZE(rootParams);
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
+		rootSig.pStaticSamplers = samplers;
+
+		ID3DBlob* serializedRootSig = 0;
+		ID3DBlob* errors = 0;
+
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		// Check for errors during serialization
+		if (errors != 0)
+		{
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		}
+
+		// Actually create the root sig
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(refractionRootSignature.GetAddressOf()));
+	}
+
+	// Pipeline state
+	{
+		// Describe the pipeline state
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+
+		// -- Input assembler related ---
+		psoDesc.InputLayout.NumElements = inputElementCount;
+		psoDesc.InputLayout.pInputElementDescs = inputElements;
+		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		// Overall primitive topology type (triangle, line, etc.) is set here 
+		// IASetPrimTop() is still used to set list/strip/adj options
+		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
+
+		// Root sig
+		psoDesc.pRootSignature = refractionRootSignature.Get();
+
+		// -- Shaders (VS/PS) --- 
+		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
+		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
+		psoDesc.PS.pShaderBytecode = refractionShaderByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = refractionShaderByteCode->GetBufferSize();
+
+		// -- Render targets ---
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		psoDesc.SampleDesc.Count = 1;
+		psoDesc.SampleDesc.Quality = 0;
+
+		// -- States ---
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		psoDesc.RasterizerState.DepthClipEnable = true;
+
+		psoDesc.DepthStencilState.DepthEnable = true;
+		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+		psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		// -- Misc ---
+		psoDesc.SampleMask = 0xffffffff;
+
+		// Create the pipe state object
+		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(refractionPipelineState.GetAddressOf()));
+	}
 }
 
 
