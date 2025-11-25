@@ -28,6 +28,7 @@ Game::Game()
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
 	SetupRefractionRTVs();
+	RefractionRootSigAndPipelineState();
 
 	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f),
 		XM_PIDIV4,
@@ -629,14 +630,14 @@ void Game::RefractionRootSigAndPipelineState()
 
 		// Create a Clamp Sampler
 		D3D12_STATIC_SAMPLER_DESC clampSamp = {};
-		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
-		anisoWrap.MaxAnisotropy = 16;
-		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
-		anisoWrap.ShaderRegister = 1;  // register(s0)
-		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		clampSamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clampSamp.Filter = D3D12_FILTER_ANISOTROPIC;
+		clampSamp.MaxAnisotropy = 16;
+		clampSamp.MaxLOD = D3D12_FLOAT32_MAX;
+		clampSamp.ShaderRegister = 1;  // register(s0)
+		clampSamp.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap, clampSamp };
 
@@ -947,68 +948,68 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(2, barriers);
 	}
 
-	//// Set Back Buffer as Render Target
-	//{
-	//	// Set Overall pipeline state
-	//	Graphics::CommandList->SetPipelineState(refractionPipelineState.Get());
-	//	// Root Sig
-	//	Graphics::CommandList->SetGraphicsRootSignature(refractionRootSignature.Get());
+	// Set Back Buffer as Render Target
+	{
+		// Set Overall pipeline state
+		Graphics::CommandList->SetPipelineState(refractionPipelineState.Get());
+		// Root Sig
+		Graphics::CommandList->SetGraphicsRootSignature(refractionRootSignature.Get());
 
-	//	Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
-	//	Graphics::CommandList->RSSetViewports(1, &viewport);
-	//	Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
-	//}
+		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+	}
 
-	//// Render Refractive Entities
-	//for (auto& e : entities) {
-	//	if (!e->GetMaterial()->GetRefractive()) {
-	//		continue;
-	//	}
+	// Render Refractive Entities
+	for (auto& e : entities) {
+		if (!e->GetMaterial()->GetRefractive()) {
+			continue;
+		}
 
-	//	std::shared_ptr<Material> mat = e->GetMaterial();
+		std::shared_ptr<Material> mat = e->GetMaterial();
 
-	//	// Set up the data we intend to use for drawing this entity
-	//	{
-	//		VertexShaderExternalData vsData = {};
-	//		vsData.world = e->GetTransform()->GetWorldMatrix();
-	//		vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-	//		vsData.view = camera->GetView();
-	//		vsData.projection = camera->GetProjection();
+		// Set up the data we intend to use for drawing this entity
+		{
+			VertexShaderExternalData vsData = {};
+			vsData.world = e->GetTransform()->GetWorldMatrix();
+			vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+			vsData.view = camera->GetView();
+			vsData.projection = camera->GetProjection();
 
-	//		// Send this to a chunk of the constant buffer heap
-	//		// and grab the GPU handle for it so we can set it for this draw
-	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-	//			(void*)(&vsData), sizeof(VertexShaderExternalData));
+			// Send this to a chunk of the constant buffer heap
+			// and grab the GPU handle for it so we can set it for this draw
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&vsData), sizeof(VertexShaderExternalData));
 
-	//		// Set this constant buffer handle
-	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
-	//	}
+			// Set this constant buffer handle
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+		}
 
-	//	// Set Up Data used for Pixel Shader
-	//	{
-	//		RefractiveExternalData psData = {};
-	//		psData.lightCount = lightCount;
-	//		psData.clearColor = DirectX::XMFLOAT3(clearColor);
-	//		psData.uvScale = mat->GetUVScale();
-	//		psData.uvOffset = mat->GetUVOffset();
-	//		psData.screenWidth = Window::Width();
-	//		psData.screenHeight = Window::Height();
-	//		psData.refractionScale = refractiveScale;
-	//		psData.useRefractionSilhouette = false;
-	//		memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
+		// Set Up Data used for Pixel Shader
+		{
+			RefractiveExternalData psData = {};
+			psData.lightCount = lightCount;
+			psData.clearColor = DirectX::XMFLOAT3(clearColor);
+			psData.uvScale = mat->GetUVScale();
+			psData.uvOffset = mat->GetUVOffset();
+			psData.screenWidth = Window::Width();
+			psData.screenHeight = Window::Height();
+			psData.refractionScale = refractiveScale;
+			psData.useRefractionSilhouette = false;
+			memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
 
-	//		// Send this to a chunk of the constant buffer heap
-	//		// and grab the GPU handle for it so we can set it for this draw
-	//		D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-	//			(void*)(&psData), sizeof(PixelShaderExternalData));
+			// Send this to a chunk of the constant buffer heap
+			// and grab the GPU handle for it so we can set it for this draw
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psData), sizeof(PixelShaderExternalData));
 
-	//		// Set this constant buffer handle
-	//		// Note: This assumes that descriptor table 1 is the
-	//		//       place to put this particular descriptor.  This
-	//		//       is based on how we set up our root signature.
-	//		Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-	//	}
-	//}
+			// Set this constant buffer handle
+			// Note: This assumes that descriptor table 1 is the
+			//       place to put this particular descriptor.  This
+			//       is based on how we set up our root signature.
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+		}
+	}
 
 	// Transition back buffer to present
 	{
