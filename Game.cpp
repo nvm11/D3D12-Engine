@@ -1009,6 +1009,18 @@ void Game::Draw(float deltaTime, float totalTime)
 			//       is based on how we set up our root signature.
 			Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
 		}
+
+		// Grab the mesh and its buffer views
+		std::shared_ptr<Mesh> mesh = e->GetMesh();
+		D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
+		D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
+
+		// Set the geometry
+		Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
+		Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+		// Draw
+		Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
 	}
 
 	// Transition back buffer to present
