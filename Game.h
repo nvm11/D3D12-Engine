@@ -57,11 +57,12 @@ private:
 	std::vector<std::shared_ptr<Emitter>> emitters;
 
 	// Refraction
-	std::vector<std::shared_ptr<Entity>> refractiveEntities;
 	const float refractiveScale = 0.25f;
 	Microsoft::WRL::ComPtr<ID3D12Resource> sceneColorRTV;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorRTVHeap;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorSRVHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE sceneColorRTVHandle{};
+	D3D12_CPU_DESCRIPTOR_HANDLE sceneColorSRVHandle{};
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> refractionRootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;

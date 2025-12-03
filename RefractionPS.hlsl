@@ -61,6 +61,8 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Using normal map as "displacement"
     float2 offsetUV = NormalMap.Sample(BasicSampler, input.uv).xy * 2 - 1;
     offsetUV.y *= -1;
+    
+    float3 testColor = NormalMap.Sample(BasicSampler, input.uv);
 	
 	// Calculate screen UV
     float2 screenUV = input.screenPosition.xy / float2(screenWidth, screenHeight);

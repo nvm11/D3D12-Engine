@@ -26,8 +26,8 @@ using namespace DirectX;
 Game::Game()
 {
 	CreateRootSigAndPipelineState();
-	CreateGeometry();
 	SetupRefractionRTVs();
+	CreateGeometry();
 	RefractionRootSigAndPipelineState();
 
 	camera = std::make_shared<Camera>(XMFLOAT3(0.0f, 0.0f, 0.0f),
@@ -93,7 +93,8 @@ void Game::CreateGeometry()
 	cobbleMat->FinalizeMaterial();
 
 	std::shared_ptr<Material> refractiveMat = std::make_shared<Material>(refractionPipelineState);
-	cobbleMat->AddTexture(cobblestoneNormals, 0);
+	refractiveMat->AddTexture(cobblestoneNormals, 0);
+	refractiveMat->AddTexture(sceneColorSRVHandle, 1);
 	refractiveMat->SetRefractive(true);
 	refractiveMat->FinalizeMaterial();
 
@@ -131,7 +132,7 @@ void Game::CreateGeometry()
 
 	// Add refractive entities
 	entityCube->SetMaterial(refractiveMat);
-	refractiveEntities.push_back(entityCube);
+	entities.push_back(entityCube);
 
 	// Create Lights
 	Light directionLight = {};
@@ -480,9 +481,9 @@ void Game::SetupRefractionRTVs()
 	// Setup Clear Value
 	D3D12_CLEAR_VALUE clear = {};
 	clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	clear.Color[0] = 0.0f; // R
-	clear.Color[1] = 0.0f; // G  
-	clear.Color[2] = 0.0f; // B
+	clear.Color[0] = 0.2f; // R
+	clear.Color[1] = 0.2f; // G  
+	clear.Color[2] = 0.45f; // B
 	clear.Color[3] = 1.0f; // A
 
 	// Describe Memory Heap
@@ -520,6 +521,30 @@ void Game::SetupRefractionRTVs()
 		sceneColorRTV.Get(),
 		0,
 		sceneColorRTVHandle);
+
+
+	// Create SRV Descriptor Heap
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+	srvHeapDesc.NumDescriptors = 1;
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	srvHeapDesc.NodeMask = 0;
+
+	Graphics::Device->CreateDescriptorHeap(
+		&srvHeapDesc,
+		IID_PPV_ARGS(sceneColorSRVHeap.GetAddressOf()));
+
+	// Create corresponding SRV Handle
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	// Get CPU handle
+	sceneColorSRVHandle = sceneColorSRVHeap->GetCPUDescriptorHandleForHeapStart();
+	// Create SRV
+	Graphics::Device->CreateShaderResourceView(sceneColorRTV.Get(), &srvDesc, sceneColorSRVHandle);
 }
 
 void Game::RefractionRootSigAndPipelineState()
@@ -782,10 +807,6 @@ void Game::Update(float deltaTime, float totalTime)
 	//for (auto& e : emitters) {
 	//	e->Update(deltaTime);
 	//}
-
-	for (auto i = 1; i < entities.size(); i++) {
-		entities[i]->GetTransform()->Rotate(0, deltaTime, deltaTime);
-	}
 }
 
 
@@ -807,7 +828,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 	// Render Opaque objects to Scene RTV
-	float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float clearColor[] = { 0.2f, 0.2f, 0.45f, 1.0f };
 	{
 
 		Graphics::CommandList->ClearRenderTargetView(
@@ -967,6 +988,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		}
 
 		std::shared_ptr<Material> mat = e->GetMaterial();
+
+		Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
 
 		// Set up the data we intend to use for drawing this entity
 		{
