@@ -75,17 +75,18 @@ struct ParticleExternalData
 
 struct RefractiveExternalData
 {
-	Light lights[MAX_LIGHTS];
-	int lightCount;
-
 	DirectX::XMFLOAT3 clearColor;
+	int lightCount;
 	DirectX::XMFLOAT3 cameraPosition;
+	float refractionScale;
 
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
-	
+
 	float screenWidth;
 	float screenHeight;
-	float refractionScale;
-	bool useRefractionSilhouette;
+	int useRefractionSilhouette;
+	float pad;
+
+	Light lights[MAX_LIGHTS];
 };

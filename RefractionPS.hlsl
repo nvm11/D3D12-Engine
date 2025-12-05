@@ -5,24 +5,25 @@
 
 
 cbuffer ExternalData : register(b0)
-{
-	// Scene related
-    Light lights[MAX_LIGHTS];
-    int lightCount;
+{   
+    // Grouped float3s together
     float3 clearColor;
-	
-	// Camera related
+    int lightCount;
     float3 cameraPosition;
-	
-	// Material
+    float refractionScale;
+    
+    // Material (grouped float2s)
     float2 uvScale;
     float2 uvOffset;
-
-	// Refraction details
+    
+    // Refraction details (all floats together)
     float screenWidth;
     float screenHeight;
-    float refractionScale;
     int useRefractionSilhouette;
+    float pad;
+    
+    // Scene related
+    Light lights[MAX_LIGHTS];
 }
 
 // Texture related resources
@@ -61,8 +62,6 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Using normal map as "displacement"
     float2 offsetUV = NormalMap.Sample(BasicSampler, input.uv).xy * 2 - 1;
     offsetUV.y *= -1;
-    
-    float3 testColor = NormalMap.Sample(BasicSampler, input.uv);
 	
 	// Calculate screen UV
     float2 screenUV = input.screenPosition.xy / float2(screenWidth, screenHeight);
@@ -72,12 +71,12 @@ float4 main(VertexToPixel input) : SV_TARGET
     float2 refractedUV = screenUV + offsetUV * refractionScale;
 
 	// Get the depth at the offset and verify its valid
-    float silhouette = RefractionSilhouette.Sample(ClampSampler, refractedUV).r;
+    /*float silhouette = RefractionSilhouette.Sample(ClampSampler, refractedUV).r;
     if (useRefractionSilhouette && silhouette < 1)
     {
 		// Invalid spot for the offset so default to THIS pixel's UV for the "refraction"
         refractedUV = screenUV;
-    }
+    }*/
 
 	// Get the color at the (now verified) offset UV
     float3 sceneColor = pow(ScreenPixels.Sample(ClampSampler, refractedUV).rgb, 2.2f); // Un-gamma correct

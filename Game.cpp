@@ -1019,7 +1019,9 @@ void Game::Draw(float deltaTime, float totalTime)
 			psData.screenHeight = Window::Height();
 			psData.refractionScale = refractiveScale;
 			psData.useRefractionSilhouette = false;
-			memcpy(psData.lights, &lights[0], sizeof(Light)* MAX_LIGHTS);
+			psData.cameraPosition = camera->GetTransform().GetPosition();
+			psData.pad = 0.0f;
+			memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
 
 			// Send this to a chunk of the constant buffer heap
 			// and grab the GPU handle for it so we can set it for this draw
