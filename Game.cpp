@@ -757,12 +757,67 @@ void Game::RefractionRootSigAndPipelineState()
 		D3DReadFileToBlob(FixPath(L"SilhouettePS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
 	}
 
-	// Input Layout (Remains the Same)
-
 	// Root Sig
+	{
+		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
+		cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeVS.NumDescriptors = 1;
+		cbvRangeVS.BaseShaderRegister = 0;
+		cbvRangeVS.RegisterSpace = 0;
+		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Root parameters
+		D3D12_ROOT_PARAMETER rootParams[1] = {};
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
+
+		// No static samplers needed
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = 1;
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = 0;
+		rootSig.pStaticSamplers = 0;
+
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = ARRAYSIZE(rootParams);
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = 0;
+		rootSig.pStaticSamplers = 0;
+
+		ID3DBlob* serializedRootSig = 0;
+		ID3DBlob* errors = 0;
+
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		// Check for errors during serialization
+		if (errors != 0)
+		{
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		}
+
+		// Actually create the root sig
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(silhouetteRootSignature.GetAddressOf()));
+	}
 
 	// Pipeline State
+	{
+		// Reuse old input layout
+	}
 
+	// Silhouette RTV
 	// Silhouette SRV
 }
 
