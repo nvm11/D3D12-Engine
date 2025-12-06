@@ -67,6 +67,15 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> refractionRootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> silhouetteTexture;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorRTVHeap;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorSRVHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE silhouetteRTVHandle{};
+	D3D12_CPU_DESCRIPTOR_HANDLE silhouetteSRVHandle{};
+
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> silhouetteRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> silhouettePipelineState;
+
 	// Helper to test particle systems
 	void InitializeParticleSystem();
 	// Helper to set up RTVs for Refraction
