@@ -549,6 +549,8 @@ void Game::SetupRefractionRTVs()
 
 void Game::RefractionRootSigAndPipelineState()
 {
+	// ===REFRACTION===
+
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> refractionShaderByteCode;
@@ -746,6 +748,22 @@ void Game::RefractionRootSigAndPipelineState()
 		// Create the pipe state object
 		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(refractionPipelineState.GetAddressOf()));
 	}
+
+	// ===SILHOUETTE===
+
+	// Shaders (Reuse Vert)
+	Microsoft::WRL::ComPtr<ID3DBlob> silhoueteShaderByteCode;
+	{
+		D3DReadFileToBlob(FixPath(L"SilhouettePS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
+	}
+
+	// Input Layout (Remains the Same)
+
+	// Root Sig
+
+	// Pipeline State
+
+	// Silhouette SRV
 }
 
 
