@@ -814,7 +814,52 @@ void Game::RefractionRootSigAndPipelineState()
 
 	// Pipeline State
 	{
-		// Reuse old input layout
+		// Describe the pipeline state
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+
+		// -- Input assembler related ---
+		psoDesc.InputLayout.NumElements = inputElementCount;
+		psoDesc.InputLayout.pInputElementDescs = inputElements;
+		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		// Overall primitive topology type (triangle, line, etc.) is set here 
+		// IASetPrimTop() is still used to set list/strip/adj options
+		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
+
+		// Root sig
+		psoDesc.pRootSignature = silhouetteRootSignature.Get();
+
+		// -- Shaders (VS/PS) --- 
+		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
+		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
+		psoDesc.PS.pShaderBytecode = silhoueteShaderByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = silhoueteShaderByteCode->GetBufferSize();
+
+		// -- Render targets ---
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		psoDesc.SampleDesc.Count = 1;
+		psoDesc.SampleDesc.Quality = 0;
+
+		// -- States ---
+		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		psoDesc.RasterizerState.DepthClipEnable = true;
+
+		psoDesc.DepthStencilState.DepthEnable = true;
+		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+		psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		// -- Misc ---
+		psoDesc.SampleMask = 0xffffffff;
+
+		// Create the pipe state object
+		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(silhouettePipelineState.GetAddressOf()));
 	}
 
 	// Silhouette RTV
