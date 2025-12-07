@@ -68,8 +68,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> refractionPipelineState;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> silhouetteTexture;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorRTVHeap;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> sceneColorSRVHeap;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> silhouetteRTVHeap;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> silhouetteSRVHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE silhouetteRTVHandle{};
 	D3D12_CPU_DESCRIPTOR_HANDLE silhouetteSRVHandle{};
 

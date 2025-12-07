@@ -464,87 +464,181 @@ void Game::InitializeParticleSystem()
 
 void Game::SetupRefractionRTVs()
 {
-	// Describe Render Target
-	D3D12_RESOURCE_DESC desc = {};
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.Alignment = 0;
-	desc.Width = Window::Width();
-	desc.Height = Window::Height();
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	// Scene Color
+	{
+		// Describe Render Target
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Alignment = 0;
+		desc.Width = Window::Width();
+		desc.Height = Window::Height();
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-	// Setup Clear Value
-	D3D12_CLEAR_VALUE clear = {};
-	clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	clear.Color[0] = 0.2f; // R
-	clear.Color[1] = 0.2f; // G  
-	clear.Color[2] = 0.45f; // B
-	clear.Color[3] = 1.0f; // A
+		// Setup Clear Value
+		D3D12_CLEAR_VALUE clear = {};
+		clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		clear.Color[0] = 0.2f; // R
+		clear.Color[1] = 0.2f; // G  
+		clear.Color[2] = 0.45f; // B
+		clear.Color[3] = 1.0f; // A
 
-	// Describe Memory Heap
-	D3D12_HEAP_PROPERTIES heapProps = {};
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.CreationNodeMask = 1;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT; // GPU-only memory
-	heapProps.VisibleNodeMask = 1;
+		// Describe Memory Heap
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT; // GPU-only memory
+		heapProps.VisibleNodeMask = 1;
 
-	// Create the Resource
-	Graphics::Device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		&clear,
-		IID_PPV_ARGS(sceneColorRTV.GetAddressOf()));
+		// Create the Resource
+		Graphics::Device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			&clear,
+			IID_PPV_ARGS(sceneColorRTV.GetAddressOf()));
+	}
 
-	// Create RTV Descriptor Heap
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-	rtvHeapDesc.NumDescriptors = 1;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvHeapDesc.NodeMask = 0;
+	{
+		// Create RTV Descriptor Heap
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = 1;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		rtvHeapDesc.NodeMask = 0;
 
-	Graphics::Device->CreateDescriptorHeap(
-		&rtvHeapDesc,
-		IID_PPV_ARGS(sceneColorRTVHeap.GetAddressOf()));
+		Graphics::Device->CreateDescriptorHeap(
+			&rtvHeapDesc,
+			IID_PPV_ARGS(sceneColorRTVHeap.GetAddressOf()));
 
-	// Get CPU handle
-	sceneColorRTVHandle = sceneColorRTVHeap->GetCPUDescriptorHandleForHeapStart();
-	// Create actual RTV
-	Graphics::Device->CreateRenderTargetView(
-		sceneColorRTV.Get(),
-		0,
-		sceneColorRTVHandle);
+		// Get CPU handle
+		sceneColorRTVHandle = sceneColorRTVHeap->GetCPUDescriptorHandleForHeapStart();
+		// Create actual RTV
+		Graphics::Device->CreateRenderTargetView(
+			sceneColorRTV.Get(),
+			0,
+			sceneColorRTVHandle);
+	}
 
+	{
+		// Create SRV Descriptor Heap
+		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+		srvHeapDesc.NumDescriptors = 1;
+		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		srvHeapDesc.NodeMask = 0;
 
-	// Create SRV Descriptor Heap
-	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 1;
-	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	srvHeapDesc.NodeMask = 0;
+		Graphics::Device->CreateDescriptorHeap(
+			&srvHeapDesc,
+			IID_PPV_ARGS(sceneColorSRVHeap.GetAddressOf()));
 
-	Graphics::Device->CreateDescriptorHeap(
-		&srvHeapDesc,
-		IID_PPV_ARGS(sceneColorSRVHeap.GetAddressOf()));
+		// Create corresponding SRV Handle
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;
 
-	// Create corresponding SRV Handle
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
+		// Get CPU handle
+		sceneColorSRVHandle = sceneColorSRVHeap->GetCPUDescriptorHandleForHeapStart();
+		// Create SRV
+		Graphics::Device->CreateShaderResourceView(sceneColorRTV.Get(), &srvDesc, sceneColorSRVHandle);
+	}
 
-	// Get CPU handle
-	sceneColorSRVHandle = sceneColorSRVHeap->GetCPUDescriptorHandleForHeapStart();
-	// Create SRV
-	Graphics::Device->CreateShaderResourceView(sceneColorRTV.Get(), &srvDesc, sceneColorSRVHandle);
+	// Silhouette
+	{
+		// Describe Render Target
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Alignment = 0;
+		desc.Width = Window::Width();
+		desc.Height = Window::Height();
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		// Setup Clear Value
+		D3D12_CLEAR_VALUE clear = {};
+		clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		clear.Color[0] = 0.0f; // R
+		clear.Color[1] = 0.0f; // G  
+		clear.Color[2] = 0.0f; // B
+		clear.Color[3] = 1.0f; // A
+
+		// Describe Memory Heap
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.Type = D3D12_HEAP_TYPE_DEFAULT; // GPU-only memory
+		heapProps.VisibleNodeMask = 1;
+
+		// Create the Resource
+		Graphics::Device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			&clear,
+			IID_PPV_ARGS(silhouetteTexture.GetAddressOf()));
+	}
+
+	{
+		// Create RTV Descriptor Heap
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = 1;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		rtvHeapDesc.NodeMask = 0;
+
+		Graphics::Device->CreateDescriptorHeap(
+			&rtvHeapDesc,
+			IID_PPV_ARGS(silhouetteRTVHeap.GetAddressOf()));
+
+		// Get CPU handle
+		silhouetteRTVHandle = silhouetteRTVHeap->GetCPUDescriptorHandleForHeapStart();
+		// Create actual RTV
+		Graphics::Device->CreateRenderTargetView(
+			silhouetteTexture.Get(),
+			0,
+			silhouetteRTVHandle);
+	}
+
+	{
+		// Create SRV Descriptor Heap
+		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+		srvHeapDesc.NumDescriptors = 1;
+		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		srvHeapDesc.NodeMask = 0;
+
+		Graphics::Device->CreateDescriptorHeap(
+			&srvHeapDesc,
+			IID_PPV_ARGS(silhouetteSRVHeap.GetAddressOf()));
+
+		// Create corresponding SRV Handle
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		// Get CPU handle
+		silhouetteSRVHandle = silhouetteSRVHeap->GetCPUDescriptorHandleForHeapStart();
+		// Create SRV
+		Graphics::Device->CreateShaderResourceView(silhouetteTexture.Get(), &srvDesc, silhouetteSRVHandle);
+	}
 }
 
 void Game::RefractionRootSigAndPipelineState()
@@ -752,9 +846,9 @@ void Game::RefractionRootSigAndPipelineState()
 	// ===SILHOUETTE===
 
 	// Shaders (Reuse Vert)
-	Microsoft::WRL::ComPtr<ID3DBlob> silhoueteShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> silhouetteShaderByteCode;
 	{
-		D3DReadFileToBlob(FixPath(L"SilhouettePS.cso").c_str(), refractionShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"SilhouettePS.cso").c_str(), silhouetteShaderByteCode.GetAddressOf());
 	}
 
 	// Root Sig
@@ -772,14 +866,6 @@ void Game::RefractionRootSigAndPipelineState()
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
-
-		// No static samplers needed
-		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
-		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-		rootSig.NumParameters = 1;
-		rootSig.pParameters = rootParams;
-		rootSig.NumStaticSamplers = 0;
-		rootSig.pStaticSamplers = 0;
 
 		// Describe and serialize the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
@@ -831,8 +917,8 @@ void Game::RefractionRootSigAndPipelineState()
 		// -- Shaders (VS/PS) --- 
 		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
 		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
-		psoDesc.PS.pShaderBytecode = silhoueteShaderByteCode->GetBufferPointer();
-		psoDesc.PS.BytecodeLength = silhoueteShaderByteCode->GetBufferSize();
+		psoDesc.PS.pShaderBytecode = silhouetteShaderByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = silhouetteShaderByteCode->GetBufferSize();
 
 		// -- Render targets ---
 		psoDesc.NumRenderTargets = 1;
