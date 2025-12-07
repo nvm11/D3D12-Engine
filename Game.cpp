@@ -590,7 +590,7 @@ void Game::SetupRefractionRTVs()
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			&clear,
 			IID_PPV_ARGS(silhouetteTexture.GetAddressOf()));
 	}
@@ -621,7 +621,7 @@ void Game::SetupRefractionRTVs()
 		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 		srvHeapDesc.NumDescriptors = 1;
 		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		srvHeapDesc.NodeMask = 0;
 
 		Graphics::Device->CreateDescriptorHeap(
@@ -948,9 +948,6 @@ void Game::RefractionRootSigAndPipelineState()
 		// Create the pipe state object
 		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(silhouettePipelineState.GetAddressOf()));
 	}
-
-	// Silhouette RTV
-	// Silhouette SRV
 }
 
 
@@ -991,6 +988,10 @@ void Game::OnResize()
 
 	sceneColorRTV.Reset();
 	sceneColorRTVHeap.Reset();
+	sceneColorSRVHeap.Reset();
+	silhouetteTexture.Reset();
+	silhouetteSRVHeap.Reset();
+	silhouetteRTVHeap.Reset();
 	SetupRefractionRTVs();
 
 	// Resize raytracing output texture
@@ -1144,6 +1145,76 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(1, &barrier);
 	}
 
+	// Transition silhouette to RTV
+	{
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = silhouetteTexture.Get();
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &barrier);
+	}
+
+	//  Render Silhouette
+	{
+		float black[4] = { 0, 0, 0, 1 };
+
+		// Clear silhouette RT
+		Graphics::CommandList->ClearRenderTargetView(silhouetteRTVHandle, black, 0, 0);
+
+		// Bind pipeline state
+		Graphics::CommandList->SetPipelineState(silhouettePipelineState.Get());
+		Graphics::CommandList->SetGraphicsRootSignature(silhouetteRootSignature.Get());
+
+		Graphics::CommandList->OMSetRenderTargets(1, &silhouetteRTVHandle, true, &Graphics::DSVHandle);
+
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+
+		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		for (auto& e : entities)
+		{
+			if (!e->GetMaterial()->GetRefractive())
+				continue;
+
+			// VS Data
+			VertexShaderExternalData vs = {};
+			vs.world = e->GetTransform()->GetWorldMatrix();
+			vs.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+			vs.view = camera->GetView();
+			vs.projection = camera->GetProjection();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cb = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				&vs, sizeof(vs));
+
+			// Only the VS has a root param
+			Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cb);
+
+			auto mesh = e->GetMesh();
+			auto vbv = mesh->GetVertexBufferView();
+			auto ibv = mesh->GetIndexBufferView();
+
+			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
+			Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+			Graphics::CommandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+		}
+	}
+
+	// Transition silhouette back to SRV
+	{
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = silhouetteTexture.Get();
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &barrier);
+	}
+
 	// Grab the current back buffer for this frame
 	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = Graphics::BackBuffers[Graphics::SwapChainIndex()];
 
@@ -1223,7 +1294,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			psData.screenWidth = Window::Width();
 			psData.screenHeight = Window::Height();
 			psData.refractionScale = refractiveScale;
-			psData.useRefractionSilhouette = false;
+			psData.useRefractionSilhouette = true;
 			psData.cameraPosition = camera->GetTransform().GetPosition();
 			psData.pad = 0.0f;
 			memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
@@ -1231,7 +1302,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			// Send this to a chunk of the constant buffer heap
 			// and grab the GPU handle for it so we can set it for this draw
 			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-				(void*)(&psData), sizeof(PixelShaderExternalData));
+				(void*)(&psData), sizeof(RefractiveExternalData));
 
 			// Set this constant buffer handle
 			// Note: This assumes that descriptor table 1 is the

@@ -71,12 +71,12 @@ float4 main(VertexToPixel input) : SV_TARGET
     float2 refractedUV = screenUV + offsetUV * refractionScale;
 
 	// Get the depth at the offset and verify its valid
-    /*float silhouette = RefractionSilhouette.Sample(ClampSampler, refractedUV).r;
+    float silhouette = RefractionSilhouette.Sample(ClampSampler, refractedUV).r;
     if (useRefractionSilhouette && silhouette < 1)
     {
 		// Invalid spot for the offset so default to THIS pixel's UV for the "refraction"
         refractedUV = screenUV;
-    }*/
+    }
 
 	// Get the color at the (now verified) offset UV
     float3 sceneColor = pow(ScreenPixels.Sample(ClampSampler, refractedUV).rgb, 2.2f); // Un-gamma correct
