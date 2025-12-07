@@ -95,6 +95,7 @@ void Game::CreateGeometry()
 	std::shared_ptr<Material> refractiveMat = std::make_shared<Material>(refractionPipelineState);
 	refractiveMat->AddTexture(cobblestoneNormals, 0);
 	refractiveMat->AddTexture(sceneColorSRVHandle, 1);
+	refractiveMat->AddTexture(silhouetteSRVHandle, 2);
 	refractiveMat->SetRefractive(true);
 	refractiveMat->FinalizeMaterial();
 
@@ -1031,6 +1032,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->ResourceBarrier(1, &barrier);
 	}
 
+	std::vector<std::shared_ptr<Entity>> refractiveEntities;
+
 	// Render Opaque objects to Scene RTV
 	float clearColor[] = { 0.2f, 0.2f, 0.45f, 1.0f };
 	{
@@ -1063,6 +1066,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Render Opaque Entities
 		for (auto& e : entities) {
 			if (e->GetMaterial()->GetRefractive()) {
+				refractiveEntities.push_back(e);
 				continue;
 			}
 
@@ -1186,10 +1190,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 	// Render Refractive Entities
-	for (auto& e : entities) {
-		if (!e->GetMaterial()->GetRefractive()) {
-			continue;
-		}
+	for (auto& e : refractiveEntities) {
 
 		std::shared_ptr<Material> mat = e->GetMaterial();
 
