@@ -37,7 +37,7 @@ Game::Game()
 		100.0f);
 
 	// Create Emitter
-	//InitializeParticleSystem();
+	InitializeParticleSystem();
 
 	// Initialize raytracing
 	//RayTracing::Initialize(
@@ -124,7 +124,7 @@ void Game::CreateGeometry()
 	//entities.push_back(entityCube);
 	entities.push_back(entityHelix);
 	entities.push_back(entitySphere);
-	entities.push_back(entityTorus);
+	//entities.push_back(entityTorus);
 
 	// Add material to entites
 	for (auto& e : entities) {
@@ -401,7 +401,7 @@ void Game::InitializeParticleSystem()
 		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f), // endColor (red, fading out)
 		XMFLOAT3(0.0f, 5.0f, 0.0f),    // startVelocity
 		XMFLOAT3(1.0f, 0.5f, 1.0f),    // velocityRandomRange
-		XMFLOAT3(-1.0f, 0.0f, 3.0f),   // emitterPosition
+		XMFLOAT3(0.0f, 0.0f, 0.0f),   // emitterPosition
 		XMFLOAT3(0.25f, 0.0f, 0.25f),    // positionRandomRange
 		XMFLOAT2(0.0f, XM_2PI),        // rotationStartMinMax
 		XMFLOAT2(0.0f, XM_2PI),        // rotationEndMinMax
@@ -414,53 +414,53 @@ void Game::InitializeParticleSystem()
 		true                           // visible
 	));
 
-	emitters.push_back(std::make_shared<Emitter>(
-		100,
-		10,
-		0.5f,
-		0.05f,
-		1.0f,
-		false,
-		XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f),
-		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),
-		XMFLOAT3(0.5f, -0.5f, 1.0f),
-		XMFLOAT3(1.0f, -1.0f, 1.0f),
-		XMFLOAT3(1.0f, 0.0f, 1.0f),
-		XMFLOAT3(0.5f, 0.0f, 0.5f),
-		XMFLOAT2(0.0f, XM_PI),
-		XMFLOAT2(0.0f, XM_PI),
-		XMFLOAT3(0.0f, -0.5f, 1.0f),
-		magicMat,
-		1,
-		1,
-		1.0f,
-		false,
-		true
-	));
+	//emitters.push_back(std::make_shared<Emitter>(
+	//	100,
+	//	10,
+	//	0.5f,
+	//	0.05f,
+	//	1.0f,
+	//	false,
+	//	XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f),
+	//	XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),
+	//	XMFLOAT3(0.5f, -0.5f, 1.0f),
+	//	XMFLOAT3(1.0f, -1.0f, 1.0f),
+	//	XMFLOAT3(1.0f, 0.0f, 1.0f),
+	//	XMFLOAT3(0.5f, 0.0f, 0.5f),
+	//	XMFLOAT2(0.0f, XM_PI),
+	//	XMFLOAT2(0.0f, XM_PI),
+	//	XMFLOAT3(0.0f, -0.5f, 1.0f),
+	//	magicMat,
+	//	1,
+	//	1,
+	//	1.0f,
+	//	false,
+	//	true
+	//));
 
-	emitters.push_back(std::make_shared<Emitter>(
-		2000,                          // maxParticles
-		400,                            // particlesPerSecond  
-		3.0f,                          // lifetime
-		0.1f,                          // startSize
-		0.5f,                         // endSize
-		false,                         // constrainYAxis
-		XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f), // startColor (orange)
-		XMFLOAT4(0.0f, 1.0f, 0.5f, 1.0f), // endColor (red, fading out)
-		XMFLOAT3(1.0f, 0.4f, 0.0f),    // startVelocity
-		XMFLOAT3(1.0f, 0.5f, 0.0f),    // velocityRandomRange
-		XMFLOAT3(4.0f, 0.0f, 3.0f),   // emitterPosition
-		XMFLOAT3(0.2f, 0.2f, 0.2f),    // positionRandomRange
-		XMFLOAT2(0.0f, 0.0f),        // rotationStartMinMax
-		XMFLOAT2(0.0f, 0.0f),        // rotationEndMinMax
-		XMFLOAT3(0.0f, 0.8f, 0.0f),   // acceleration
-		sparkMat,                   // material
-		5,                             // spriteSheetWidth
-		5,                             // spriteSheetHeight
-		1.0f,                          // spriteSheetSpeedScale
-		false,                         // paused
-		true                           // visible
-	));
+	//emitters.push_back(std::make_shared<Emitter>(
+	//	2000,                          // maxParticles
+	//	400,                            // particlesPerSecond  
+	//	3.0f,                          // lifetime
+	//	0.1f,                          // startSize
+	//	0.5f,                         // endSize
+	//	false,                         // constrainYAxis
+	//	XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f), // startColor (orange)
+	//	XMFLOAT4(0.0f, 1.0f, 0.5f, 1.0f), // endColor (red, fading out)
+	//	XMFLOAT3(1.0f, 0.4f, 0.0f),    // startVelocity
+	//	XMFLOAT3(1.0f, 0.5f, 0.0f),    // velocityRandomRange
+	//	XMFLOAT3(4.0f, 0.0f, 3.0f),   // emitterPosition
+	//	XMFLOAT3(0.2f, 0.2f, 0.2f),    // positionRandomRange
+	//	XMFLOAT2(0.0f, 0.0f),        // rotationStartMinMax
+	//	XMFLOAT2(0.0f, 0.0f),        // rotationEndMinMax
+	//	XMFLOAT3(0.0f, 0.8f, 0.0f),   // acceleration
+	//	sparkMat,                   // material
+	//	5,                             // spriteSheetWidth
+	//	5,                             // spriteSheetHeight
+	//	1.0f,                          // spriteSheetSpeedScale
+	//	false,                         // paused
+	//	true                           // visible
+	//));
 }
 
 void Game::SetupRefractionRTVs()
@@ -1010,9 +1010,9 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	//for (auto& e : emitters) {
-	//	e->Update(deltaTime);
-	//}
+	for (auto& e : emitters) {
+		e->Update(deltaTime);
+	}
 }
 
 
@@ -1130,6 +1130,18 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			// Draw
 			Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
+		}
+	}
+
+	{
+		// Make sure we're using the scene RTV for particles
+		Graphics::CommandList->OMSetRenderTargets(1, &sceneColorRTVHandle, true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+
+		// Draw all particle emitters
+		for (auto& e : emitters) {
+			e->Draw(camera);
 		}
 	}
 
